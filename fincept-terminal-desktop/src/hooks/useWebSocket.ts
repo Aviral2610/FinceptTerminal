@@ -300,7 +300,9 @@ export function useWebSocket(
     return () => {
       unsubscribe();
     };
-  }, [topic, autoSubscribe, autoConnect]); // Intentionally limited dependencies
+    // Include params dependency stringified to avoid reference issues
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topic, autoSubscribe, autoConnect, JSON.stringify(params)]);
 
   /**
    * Monitor connection status and resubscribe if connection is restored
