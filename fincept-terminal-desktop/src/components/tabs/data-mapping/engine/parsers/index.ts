@@ -7,6 +7,7 @@ import { JSONataParser } from './JSONataParser';
 import { JMESPathParser } from './JMESPathParser';
 import { DirectParser } from './DirectParser';
 import { JavaScriptParser } from './JavaScriptParser';
+import { RegexParser } from './RegexParser';
 
 // Parser instances
 const parsers: Record<ParserEngine, BaseParser> = {
@@ -15,7 +16,7 @@ const parsers: Record<ParserEngine, BaseParser> = {
   [ParserEngine.JMESPATH]: new JMESPathParser(),
   [ParserEngine.DIRECT]: new DirectParser(),
   [ParserEngine.CUSTOM_JS]: new JavaScriptParser(),
-  [ParserEngine.REGEX]: new DirectParser(), // TODO: Implement RegexParser
+  [ParserEngine.REGEX]: new RegexParser(),
 };
 
 /**
@@ -96,4 +97,5 @@ export {
   JMESPathParser,
   DirectParser,
   JavaScriptParser,
+  RegexParser,
 };
