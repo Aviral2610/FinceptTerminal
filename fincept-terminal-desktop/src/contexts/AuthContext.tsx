@@ -147,6 +147,14 @@ interface AuthContextType {
   refreshUserData: () => Promise<void>;
 }
 
+// Helper to extract data from potentially nested API responses
+const extractApiData = <T = any>(data: any): T => {
+  if (data && typeof data === 'object' && 'data' in data) {
+    return data.data;
+  }
+  return data;
+};
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Device ID generation
@@ -240,8 +248,7 @@ const fetchUserProfile = async (apiKey: string): Promise<UserProfileResponse['da
     console.log('AuthContext: Raw profile result:', result); // Add this debug line
 
     if (result.success && result.data) {
-      // Fix: Extract the nested data properly
-      const profileData = (result.data as any).data || result.data;
+      const profileData = extractApiData<UserProfileResponse['data']>(result.data);
       console.log('AuthContext: Extracted profile data:', profileData); // Add this debug line
       return profileData;
     }
@@ -312,7 +319,7 @@ const fetchUserProfile = async (apiKey: string): Promise<UserProfileResponse['da
     console.log('validateSession: result.data =', result.data);
 
     // Backend returns nested structure: result.data.data contains the actual auth data
-    const authData = (result.data as any)?.data || result.data;
+    const authData = extractApiData(result.data);
     console.log('validateSession: authData =', authData);
     console.log('validateSession: authData?.authenticated =', authData?.authenticated);
 
@@ -424,7 +431,7 @@ const fetchUserProfile = async (apiKey: string): Promise<UserProfileResponse['da
 
       if (result.success && result.data) {
         // Handle the nested response structure: result.data.data.plans
-        const plansData = (result.data as any).data || result.data;
+        const plansData = extractApiData(result.data);
         const plans = plansData.plans || [];
 
         console.log('AuthContext: Extracted plans:', plans);
