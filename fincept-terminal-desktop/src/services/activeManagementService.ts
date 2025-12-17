@@ -1,5 +1,6 @@
 // Active Management Service - Portfolio Active Management Analytics
 import { invoke } from '@tauri-apps/api/core';
+import { yfinanceService } from './yfinanceService';
 
 // ==================== TYPES ====================
 
@@ -248,11 +249,40 @@ class ActiveManagementService {
    * Helper: Fetch benchmark returns (e.g., S&P 500)
    */
   async fetchBenchmarkReturns(benchmarkSymbol: string = '^GSPC', days: number = 252): Promise<number[]> {
-    // This would call yfinance or another data service
-    // For now, return placeholder
-    // TODO: Integrate with yfinance service
-    console.warn('[ActiveManagementService] Benchmark fetching not yet implemented');
-    return [];
+    try {
+      // Fetch historical data using yfinance service
+      // We rely on getRecentHistory which typically fetches enough data for recent analysis.
+      const history = await yfinanceService.getRecentHistory(benchmarkSymbol, days);
+
+      if (!history || history.length < 2) {
+        console.warn(`[ActiveManagementService] Insufficient data for benchmark ${benchmarkSymbol}`);
+        return [];
+      }
+
+      // Calculate daily returns
+      // r_t = (P_t / P_{t-1}) - 1
+      const returns: number[] = [];
+      // Sort by date to ensure correct order
+      const sortedHistory = history.sort((a, b) => a.timestamp - b.timestamp);
+
+      for (let i = 1; i < sortedHistory.length; i++) {
+        // Use adj_close if available for better return calculation, otherwise close
+        const prevPrice = sortedHistory[i - 1].adj_close || sortedHistory[i - 1].close;
+        const currPrice = sortedHistory[i].adj_close || sortedHistory[i].close;
+
+        if (prevPrice > 0) {
+          const dailyReturn = (currPrice - prevPrice) / prevPrice;
+          returns.push(dailyReturn);
+        } else {
+          returns.push(0);
+        }
+      }
+
+      return returns;
+    } catch (error) {
+      console.error('[ActiveManagementService] Error fetching benchmark returns:', error);
+      return [];
+    }
   }
 }
 
