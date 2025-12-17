@@ -3,6 +3,16 @@ import { Node, Edge } from 'reactflow';
 import { pythonAgentService } from './pythonAgentService';
 import { mcpToolService } from './mcpToolService';
 import { agentLLMService } from './agentLLMService';
+import {
+  getDataSourceById,
+  getDataSourceByAlias,
+  parseDataSourceConfig,
+  RestAPISourceConfig,
+  WebSocketSourceConfig,
+  getWebSocketTopic
+} from './dataSourceRegistry';
+import { mappingDatabase } from '../components/tabs/data-mapping/services/MappingDatabase';
+import { mappingEngine } from '../components/tabs/data-mapping/engine/MappingEngine';
 
 export type NodeStatus = 'idle' | 'running' | 'completed' | 'error';
 
@@ -232,15 +242,142 @@ class NodeExecutionManager {
   }
 
   /**
-   * Execute data source node (placeholder)
+   * Execute data source node
    */
   private async executeDataSource(node: Node): Promise<ExecutionResult> {
-    // TODO: Integrate with dataSourceRegistry
-    return {
-      nodeId: node.id,
-      success: true,
-      data: { message: 'Data source execution not yet implemented' }
-    };
+    const { selectedConnectionId, query } = node.data;
+
+    if (!selectedConnectionId) {
+      return {
+        nodeId: node.id,
+        success: false,
+        error: 'No data source connection selected'
+      };
+    }
+
+    try {
+      // 1. Get Data Source
+      let dataSource = await getDataSourceById(selectedConnectionId);
+
+      // Fallback to alias lookup if ID not found
+      if (!dataSource) {
+        dataSource = await getDataSourceByAlias(selectedConnectionId);
+      }
+
+      if (!dataSource) {
+        return {
+          nodeId: node.id,
+          success: false,
+          error: `Data source not found: ${selectedConnectionId}`
+        };
+      }
+
+      if (!dataSource.enabled) {
+        return {
+          nodeId: node.id,
+          success: false,
+          error: `Data source is disabled: ${dataSource.display_name}`
+        };
+      }
+
+      // 2. Execute based on type
+      const config = parseDataSourceConfig(dataSource);
+
+      if (!config) {
+        return {
+          nodeId: node.id,
+          success: false,
+          error: 'Invalid data source configuration'
+        };
+      }
+
+      // REST API Source
+      if (dataSource.type === 'rest_api') {
+        const restConfig = config as RestAPISourceConfig;
+
+        if (!restConfig.mappingId) {
+          return {
+            nodeId: node.id,
+            success: false,
+            error: 'REST API source missing mapping ID'
+          };
+        }
+
+        // Get Mapping
+        const mapping = await mappingDatabase.getMapping(restConfig.mappingId);
+        if (!mapping) {
+          return {
+            nodeId: node.id,
+            success: false,
+            error: `Mapping not found: ${restConfig.mappingId}`
+          };
+        }
+
+        // Execute Mapping
+        // Use node query as parameters if provided, or merge with default parameters
+        const parameters = {
+          ...restConfig.parameters,
+          ...(typeof query === 'object' ? query : { query })
+        };
+
+        const result = await mappingEngine.execute({
+          mapping,
+          parameters,
+          options: {
+            debug: true,
+            returnRaw: false
+          }
+        });
+
+        if (result.success) {
+          return {
+            nodeId: node.id,
+            success: true,
+            data: result.data,
+            execution_time_ms: result.metadata?.duration
+          };
+        } else {
+          return {
+            nodeId: node.id,
+            success: false,
+            error: Array.isArray(result.errors) ? result.errors.join(', ') : 'Mapping execution failed'
+          };
+        }
+      }
+
+      // WebSocket Source
+      else if (dataSource.type === 'websocket') {
+        const topic = getWebSocketTopic(dataSource);
+
+        return {
+          nodeId: node.id,
+          success: true,
+          data: {
+            type: 'websocket',
+            topic: topic,
+            config: config,
+            message: 'WebSocket source ready for subscription'
+          }
+        };
+      }
+
+      // Unknown Type
+      else {
+        return {
+          nodeId: node.id,
+          success: false,
+          error: `Unsupported data source type: ${dataSource.type}`
+        };
+      }
+
+    } catch (error: any) {
+      console.error('[NodeExecutionManager] Data source execution failed:', error);
+      return {
+        nodeId: node.id,
+        success: false,
+        error: error.message || 'Unknown error executing data source'
+      };
+    }
   }
 
   /**
