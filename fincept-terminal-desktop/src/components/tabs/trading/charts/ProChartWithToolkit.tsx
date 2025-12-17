@@ -4,7 +4,7 @@
  * Ready-to-use chart component with full TradingView-style functionality
  */
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { createChart, ColorType, CandlestickSeries, HistogramSeries } from 'lightweight-charts';
 import type { IChartApi, CandlestickData, Time, ISeriesApi, MouseEventParams } from 'lightweight-charts';
 import {
@@ -17,7 +17,12 @@ import {
 } from './plugins';
 import { ToolkitToolbar } from './ToolkitToolbar';
 
-interface ProChartProps {
+export interface ProChartRef {
+  addLongPosition: (entryTime: Time, entryPrice: number, label?: string) => string;
+  addShortPosition: (entryTime: Time, entryPrice: number, label?: string) => string;
+}
+
+export interface ProChartProps {
   data: Array<{
     time: number;
     open: number;
@@ -34,7 +39,7 @@ interface ProChartProps {
   onToolChange?: (tool: DrawingTool | null) => void;
 }
 
-export function ProChartWithToolkit({
+export const ProChartWithToolkit = forwardRef<ProChartRef, ProChartProps>(({
   data,
   symbol = 'CHART',
   height = 600,
@@ -42,7 +47,7 @@ export function ProChartWithToolkit({
   showToolbar = true,
   showHeader = true,
   onToolChange,
-}: ProChartProps) {
+}, ref) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick', Time> | null>(null);
@@ -421,8 +426,10 @@ export function ProChartWithToolkit({
     []
   );
 
-  // TODO: Expose API via ref using forwardRef if needed
-  // For now, the component is self-contained with toolbar UI
+  useImperativeHandle(ref, () => ({
+    addLongPosition,
+    addShortPosition
+  }));
 
   return (
     <div
@@ -549,4 +556,6 @@ export function ProChartWithToolkit({
       </div>
     </div>
   );
-}
+});
+
+ProChartWithToolkit.displayName = 'ProChartWithToolkit';
