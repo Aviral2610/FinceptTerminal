@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <script>
+          // Critical: Set up globals before any module loads
+          window.global = window;
+          window.process = {
+            env: { NODE_ENV: 'production' },
+            version: 'v18.0.0',
+            browser: true,
+            nextTick: function(fn) {
+              var args = Array.prototype.slice.call(arguments, 1);
+              setTimeout(function() { fn.apply(null, args); }, 0);
+            },
+            cwd: function() { return '/'; },
+            platform: 'browser',
+            argv: [],
+            pid: 1
+          };
+          window.module = { exports: {} };
+
+          // Make them available on globalThis too
+          globalThis.global = window.global;
+          globalThis.process = window.process;
+          globalThis.module = window.module;
+
+          console.log('[Polyfills] Emergency globals injected (process, global, module, Buffer will be loaded by vite-plugin-node-polyfills)');
+        </script>
+
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fincept Terminal</title>
+
+    <!-- Critical polyfills that must load before any other scripts -->
+    <script>
+      // Emergency polyfill injection before any module loads
+      // This ensures module, process, and Buffer are available globally
+      if (typeof module === 'undefined') {
+        window.module = { exports: {} };
+        globalThis.module = window.module;
+      }
+      if (typeof process === 'undefined') {
+        window.process = {
+          env: { NODE_ENV: 'production' },
+          browser: true,
+          version: 'v18.0.0',
+          nextTick: function(fn) { setTimeout(fn, 0); },
+          cwd: function() { return '/'; },
+          platform: 'browser',
+          argv: [],
+          pid: 1
+        };
+        globalThis.process = window.process;
+      }
+      if (typeof global === 'undefined') {
+        window.global = window;
+        globalThis.global = globalThis;
+      }
+    </script>
+    <script type="module" crossorigin src="/assets/index-CxKQ4b9y.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/react-vendor-9XN-Nagm.js">
+    <link rel="modulepreload" crossorigin href="/assets/ui-vendor-CShIXldX.js">
+    <link rel="modulepreload" crossorigin href="/assets/ccxt-vendor-DQA7zUGY.js">
+    <link rel="modulepreload" crossorigin href="/assets/tauri-vendor-CMSE6dGk.js">
+    <link rel="modulepreload" crossorigin href="/assets/chart-vendor-BDuuUcnU.js">
+    <link rel="modulepreload" crossorigin href="/assets/flow-vendor-BSU3PDPm.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-CfY03P3B.css">
+  </head>
+
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

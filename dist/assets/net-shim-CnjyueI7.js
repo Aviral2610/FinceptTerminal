@@ -1,0 +1,1 @@
+const s=n=>{const e=/^(\d{1,3}\.){3}\d{1,3}$/,t=/^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/;return e.test(n)?4:t.test(n)?6:0},o=n=>s(n)===6,r=(...n)=>(console.warn("net.connect is not supported in browser environment"),null);class c{constructor(...e){console.warn("net.Socket is not supported in browser environment")}}export{c as S,s as a,r as c,o as i};

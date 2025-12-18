@@ -1,0 +1,50 @@
+[package]
+name = "fincept-terminal-desktop"
+version = "3.0.12"
+description = "Professional-grade financial analysis platform with AI-powered insights and real-time market data"
+authors = ["Fincept Corporation <support@fincept.in>"]
+edition = "2021"
+license = "MIT"
+homepage = "https://product.fincept.in"
+repository = "https://github.com/Fincept-Corporation/FinceptTerminal"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "fincept_terminal_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["devtools"] }
+tauri-plugin-opener = "2"
+tauri-plugin-http = "2"
+tauri-plugin-cors-fetch = "4"
+tauri-plugin-sql = { version = "2", features = ["sqlite"] }
+tauri-plugin-dialog = "2"
+tauri-plugin-updater = "2.8"
+tauri-plugin-process = "2"
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tokio = { version = "1", features = ["full"] }
+anyhow = "1.0"
+chrono = "0.4"
+uuid = { version = "1.11", features = ["v4", "serde"] }
+reqwest = { version = "0.11", features = ["json", "stream"] }
+futures-util = "0.3"
+zip = "2.2"
+which = "7.0"
+printpdf = "0.7"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+[target.'cfg(target_os = "macos")'.dependencies]
+nix = { version = "0.29", features = ["signal", "process"] }
+[target.'cfg(target_os = "linux")'.dependencies]
+nix = { version = "0.29", features = ["signal", "process"] }

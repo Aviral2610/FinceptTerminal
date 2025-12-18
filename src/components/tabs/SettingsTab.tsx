@@ -1,0 +1,1674 @@
+import React, { useState, useEffect } from 'react';
+import { Save, RefreshCw, Lock, User, Settings as SettingsIcon, Database, Terminal, Bell, Bot, Edit3, Type, Palette, Wifi, WifiOff, Activity, Zap, Link, Globe, Check } from 'lucide-react';
+import { sqliteService, type LLMConfig, type LLMGlobalSettings, PREDEFINED_API_KEYS, type ApiKeys } from '@/services/sqliteService';
+import { ollamaService } from '@/services/ollamaService';
+import { useTerminalTheme } from '@/contexts/ThemeContext';
+import { terminalThemeService, FONT_FAMILIES, COLOR_THEMES, FontSettings } from '@/services/terminalThemeService';
+import { getWebSocketManager, ConnectionStatus, getAvailableProviders } from '@/services/websocket';
+import { useWebSocketManager } from '@/hooks/useWebSocket';
+import { DataSourcesPanel } from '@/components/settings/DataSourcesPanel';
+import { BacktestingProvidersPanel } from '@/components/settings/BacktestingProvidersPanel';
+import { LanguageSelector } from '@/components/settings/LanguageSelector';
+import { TerminalConfigPanel } from '@/components/settings/TerminalConfigPanel';
+import { useTimezone, TIMEZONE_OPTIONS } from '@/contexts/TimezoneContext';
+import { Clock } from 'lucide-react';
+
+export default function SettingsTab() {
+  const { theme, updateTheme, resetTheme, colors, fontSize: themeFontSize, fontFamily: themeFontFamily, fontWeight: themeFontWeight, fontStyle } = useTerminalTheme();
+  const { defaultTimezone, setDefaultTimezone, options: timezoneOptions } = useTimezone();
+  const [activeSection, setActiveSection] = useState<'credentials' | 'terminal' | 'terminalConfig' | 'llm' | 'dataConnections' | 'backtesting' | 'language'>('credentials');
+  const [apiKeys, setApiKeys] = useState<ApiKeys>({});
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [dbInitialized, setDbInitialized] = useState(false);
+
+  // WebSocket Data Connections State
+  const { stats, statuses, metrics, manager } = useWebSocketManager();
+  const [wsProviders, setWsProviders] = useState<Array<{
+    id: number;
+    provider_name: string;
+    enabled: boolean;
+    api_key: string | null;
+    api_secret: string | null;
+    endpoint: string | null;
+    config_data: string | null;
+  }>>([]);
+  const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
+  const [providerForm, setProviderForm] = useState({
+    provider_name: '',
+    enabled: true,
+    api_key: '',
+    api_secret: '',
+    endpoint: '',
+    config_data: ''
+  });
+  const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
+  const [programmaticProviders, setProgrammaticProviders] = useState<Set<string>>(new Set());
+
+  // Terminal appearance states
+  const [fontFamily, setFontFamily] = useState(theme.font.family);
+  const [baseSize, setBaseSize] = useState(theme.font.baseSize);
+  const [fontWeight, setFontWeight] = useState(theme.font.weight);
+  const [fontItalic, setFontItalic] = useState(theme.font.italic);
+  const [selectedTheme, setSelectedTheme] = useState(terminalThemeService.getCurrentThemeKey());
+
+  // Key mapping configuration
+  const DEFAULT_KEY_MAPPINGS = {
+    F1: 'dashboard',
+    F2: 'markets',
+    F3: 'news',
+    F4: 'portfolio',
+    F5: 'analytics',
+    F6: 'watchlist',
+    F7: 'equity-research',
+    F8: 'screener',
+    F9: 'trading',
+    F10: 'chat',
+    F11: 'fullscreen',
+    F12: 'profile'
+  };
+
+  const [keyMappings, setKeyMappings] = useState<Record<string, string>>(DEFAULT_KEY_MAPPINGS);
+
+  // LLM Configuration States
+  const [llmConfigs, setLlmConfigs] = useState<LLMConfig[]>([]);
+  const [llmGlobalSettings, setLlmGlobalSettings] = useState<LLMGlobalSettings>({
+    temperature: 0.7,
+    max_tokens: 2048,
+    system_prompt: ''
+  });
+  const [activeProvider, setActiveProvider] = useState<string>('ollama');
+
+  // Ollama model selection
+  const [ollamaModels, setOllamaModels] = useState<string[]>([]);
+  const [ollamaLoading, setOllamaLoading] = useState(false);
+  const [ollamaError, setOllamaError] = useState<string | null>(null);
+  const [useManualEntry, setUseManualEntry] = useState(false);
+  const [showPasswords, setShowPasswords] = useState<Record<number, boolean>>({});
+
+
+
+  useEffect(() => {
+    checkAndLoadData();
+  }, []);
+
+  // Track programmatic providers that get initialized
+  useEffect(() => {
+    const detectedProviders = new Set<string>([
+      ...Array.from(statuses.keys()),
+      ...manager.getSubscriptions().map(sub => sub.topic.split('.')[0])
+    ]);
+
+    // Filter out database-configured providers
+    detectedProviders.forEach(p => {
+      if (wsProviders.find(wp => wp.provider_name === p)) {
+        detectedProviders.delete(p);
+      }
+    });
+
+    if (detectedProviders.size > 0) {
+      setProgrammaticProviders(prev => new Set([...prev, ...detectedProviders]));
+    }
+  }, [statuses, wsProviders]);
+
+  const checkAndLoadData = async () => {
+    try {
+      setLoading(true);
+
+      // Check if database is already initialized
+      const isReady = sqliteService.isReady();
+
+      if (!isReady) {
+        // Database not initialized, initialize it now
+        console.log('[SettingsTab] Database not initialized, initializing now...');
+        await sqliteService.initialize();
+      }
+
+      // Verify database health
+      const healthCheck = await sqliteService.healthCheck();
+      if (!healthCheck.healthy) {
+        throw new Error(healthCheck.message);
+      }
+
+      setDbInitialized(true);
+
+      // Load initial data
+      await loadApiKeys();
+      await loadLLMConfigs();
+      await loadWSProviders();
+
+      console.log('[SettingsTab] Data loaded successfully');
+    } catch (error) {
+      console.error('[SettingsTab] Failed to load data:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      showMessage('error', `Failed to load settings: ${errorMsg}`);
+      setDbInitialized(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadWSProviders = async () => {
+    try {
+      const providers = await sqliteService.getWSProviderConfigs();
+      setWsProviders(providers);
+
+      // Auto-initialize enabled providers in WebSocket Manager
+      const wsManager = getWebSocketManager();
+      for (const provider of providers) {
+        if (provider.enabled) {
+          wsManager.setProviderConfig(provider.provider_name, {
+            provider_name: provider.provider_name,
+            enabled: provider.enabled,
+            api_key: provider.api_key || undefined,
+            api_secret: provider.api_secret || undefined,
+            endpoint: provider.endpoint || undefined
+          });
+          console.log(`[Settings] Auto-initialized provider: ${provider.provider_name}`);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load WS providers:', error);
+    }
+  };
+
+  const handleSaveWSProvider = async () => {
+    if (!providerForm.provider_name.trim()) {
+      showMessage('error', 'Provider name is required');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const result = await sqliteService.saveWSProviderConfig(providerForm);
+
+      if (result.success) {
+        showMessage('success', result.message);
+
+        // Initialize provider in WebSocket Manager
+        const manager = getWebSocketManager();
+        manager.setProviderConfig(providerForm.provider_name, {
+          provider_name: providerForm.provider_name,
+          enabled: providerForm.enabled,
+          api_key: providerForm.api_key || undefined,
+          api_secret: providerForm.api_secret || undefined,
+          endpoint: providerForm.endpoint || undefined
+        });
+
+        // Reset form
+        setProviderForm({
+          provider_name: '',
+          enabled: true,
+          api_key: '',
+          api_secret: '',
+          endpoint: '',
+          config_data: ''
+        });
+        setSelectedProvider(null);
+        await loadWSProviders();
+      } else {
+        showMessage('error', result.message);
+      }
+    } catch (error) {
+      showMessage('error', 'Failed to save provider configuration');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleWSProvider = async (providerName: string) => {
+    try {
+      const result = await sqliteService.toggleWSProviderEnabled(providerName);
+      if (result.success) {
+        showMessage('success', result.message);
+        await loadWSProviders();
+
+        // Reconnect or disconnect based on new state
+        const manager = getWebSocketManager();
+        if (result.enabled) {
+          const config = await sqliteService.getWSProviderConfig(providerName);
+          if (config) {
+            manager.setProviderConfig(providerName, config);
+          }
+        } else {
+          await manager.disconnect(providerName);
+        }
+      }
+    } catch (error) {
+      showMessage('error', 'Failed to toggle provider');
+    }
+  };
+
+  const handleDeleteWSProvider = async (providerName: string) => {
+    if (!confirm(`Delete configuration for ${providerName}?`)) return;
+
+    try {
+      setLoading(true);
+      const result = await sqliteService.deleteWSProviderConfig(providerName);
+
+      if (result.success) {
+        showMessage('success', result.message);
+
+        // Disconnect from WebSocket Manager
+        const manager = getWebSocketManager();
+        await manager.disconnect(providerName);
+
+        await loadWSProviders();
+      }
+    } catch (error) {
+      showMessage('error', 'Failed to delete provider');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConnectProvider = async (providerName: string) => {
+    try {
+      const manager = getWebSocketManager();
+
+      // First try to get config from database
+      const config = await sqliteService.getWSProviderConfig(providerName);
+
+      if (config) {
+        manager.setProviderConfig(providerName, config);
+
+        // Check if there are existing subscriptions to restore
+        const hasSubscriptions = manager.getProviderSubscriptions(providerName).length > 0;
+
+        if (hasSubscriptions) {
+          // Use reconnect to restore subscriptions
+          await manager.reconnect(providerName);
+        } else {
+          // Just connect if no subscriptions
+          await manager.connect(providerName);
+        }
+
+        showMessage('success', `Connected to ${providerName}`);
+      } else {
+        showMessage('error', `No configuration found for ${providerName}`);
+      }
+    } catch (error) {
+      showMessage('error', `Failed to connect to ${providerName}: ${error}`);
+    }
+  };
+
+  const handleDisconnectProvider = async (providerName: string) => {
+    try {
+      const manager = getWebSocketManager();
+      await manager.disconnect(providerName);
+      showMessage('success', `Disconnected from ${providerName}`);
+    } catch (error) {
+      showMessage('error', `Failed to disconnect from ${providerName}`);
+    }
+  };
+
+  const handleTestProvider = async (providerName: string) => {
+    try {
+      const manager = getWebSocketManager();
+      const latency = await manager.ping(providerName);
+      showMessage('success', `Ping: ${latency}ms`);
+    } catch (error) {
+      showMessage('error', `Ping failed for ${providerName}`);
+    }
+  };
+
+  const handleUnsubscribe = async (subscriptionId: string, topic: string) => {
+    try {
+      const manager = getWebSocketManager();
+      const subscriptions = manager.getSubscriptions();
+      const sub = subscriptions.find(s => s.id === subscriptionId);
+
+      if (sub) {
+        sub.unsubscribe();
+        showMessage('success', `Unsubscribed from ${topic}`);
+      } else {
+        showMessage('error', 'Subscription not found');
+      }
+    } catch (error) {
+      showMessage('error', `Failed to unsubscribe from ${topic}`);
+    }
+  };
+
+  const loadApiKeys = async () => {
+    try {
+      const keys = await sqliteService.getAllApiKeys();
+      setApiKeys(keys);
+    } catch (error) {
+      console.error('Failed to load API keys:', error);
+    }
+  };
+
+  const handleSaveApiKeyField = async (keyName: string, value: string) => {
+    setLoading(true);
+    try {
+      await sqliteService.setApiKey(keyName, value);
+      setApiKeys({ ...apiKeys, [keyName]: value });
+      setMessage({ type: 'success', text: `${keyName} saved` });
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to save' });
+    } finally {
+      setLoading(false);
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
+
+  const loadLLMConfigs = async () => {
+    try {
+      const configs = await sqliteService.getLLMConfigs();
+      setLlmConfigs(configs);
+
+      const globalSettings = await sqliteService.getLLMGlobalSettings();
+      setLlmGlobalSettings(globalSettings);
+
+      const activeConfig = configs.find(c => c.is_active);
+      if (activeConfig) {
+        setActiveProvider(activeConfig.provider);
+      }
+    } catch (error) {
+      console.error('Failed to load LLM configs:', error);
+    }
+  };
+
+
+  const handleSaveLLMConfig = async () => {
+    try {
+      setLoading(true);
+
+      // Save all provider configs
+      for (const config of llmConfigs) {
+        await sqliteService.saveLLMConfig(config);
+      }
+
+      // Set active provider
+      await sqliteService.setActiveLLMProvider(activeProvider);
+
+      // Save global settings
+      await sqliteService.saveLLMGlobalSettings(llmGlobalSettings);
+
+      showMessage('success', 'LLM configuration saved successfully');
+      await loadLLMConfigs();
+    } catch (error) {
+      showMessage('error', 'Failed to save LLM configuration');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateLLMConfig = (provider: string, field: keyof LLMConfig, value: any) => {
+    setLlmConfigs(prev => prev.map(config =>
+      config.provider === provider ? { ...config, [field]: value } : config
+    ));
+  };
+
+  const fetchOllamaModels = async () => {
+    setOllamaLoading(true);
+    setOllamaError(null);
+
+    const currentConfig = getCurrentLLMConfig();
+    const baseUrl = currentConfig?.base_url || 'http://localhost:11434';
+
+    const result = await ollamaService.listModels(baseUrl);
+
+    if (result.success && result.models) {
+      setOllamaModels(result.models);
+      setOllamaError(null);
+    } else {
+      setOllamaModels([]);
+      setOllamaError(result.error || 'Failed to fetch models');
+    }
+
+    setOllamaLoading(false);
+  };
+
+  // Fetch Ollama models when switching to Ollama provider
+  useEffect(() => {
+    if (activeProvider === 'ollama' && activeSection === 'llm') {
+      fetchOllamaModels();
+    }
+  }, [activeProvider, activeSection]);
+
+  const togglePasswordVisibility = (id: number) => {
+    setShowPasswords(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const showMessage = (type: 'success' | 'error', text: string) => {
+    setMessage({ type, text });
+    setTimeout(() => setMessage(null), 5000);
+  };
+
+  const getCurrentLLMConfig = () => llmConfigs.find(c => c.provider === activeProvider);
+
+  // Terminal appearance handlers
+  const handleSaveTerminalAppearance = () => {
+    const newTheme = {
+      font: {
+        family: fontFamily,
+        baseSize: baseSize,
+        weight: fontWeight,
+        italic: fontItalic
+      },
+      colors: COLOR_THEMES[selectedTheme]
+    };
+    updateTheme(newTheme);
+
+    // Save key mappings to localStorage
+    localStorage.setItem('fincept_key_mappings', JSON.stringify(keyMappings));
+
+    showMessage('success', 'Terminal appearance and key mappings saved successfully');
+  };
+
+  const handleResetTerminalAppearance = () => {
+    resetTheme();
+    const defaultTheme = terminalThemeService.getTheme();
+    setFontFamily(defaultTheme.font.family);
+    setBaseSize(defaultTheme.font.baseSize);
+    setFontWeight(defaultTheme.font.weight);
+    setFontItalic(defaultTheme.font.italic);
+    setSelectedTheme('bloomberg-classic');
+
+    // Reset key mappings to defaults
+    setKeyMappings(DEFAULT_KEY_MAPPINGS);
+    localStorage.removeItem('fincept_key_mappings');
+
+    showMessage('success', 'Reset to default appearance and key mappings');
+  };
+
+  // Load saved key mappings on mount
+  useEffect(() => {
+    const savedMappings = localStorage.getItem('fincept_key_mappings');
+    if (savedMappings) {
+      try {
+        setKeyMappings(JSON.parse(savedMappings));
+      } catch (err) {
+        console.error('Failed to load key mappings:', err);
+      }
+    }
+  }, []);
+
+  return (
+    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: colors.background }}>
+      <style>{`
+        *::-webkit-scrollbar { width: 8px; height: 8px; }
+        *::-webkit-scrollbar-track { background: ${colors.panel}; }
+        *::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 4px; }
+        *::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
+
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+
+        @keyframes slideIn {
+          from { transform: translateX(-10px); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+      `}</style>
+
+      {/* Header */}
+      <div style={{
+        borderBottom: `2px solid ${colors.primary}`,
+        padding: '12px 16px',
+        background: `linear-gradient(180deg, #1a1a1a 0%, ${colors.panel} 100%)`,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexShrink: 0
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <SettingsIcon size={20} color={colors.primary} />
+          <span style={{ color: colors.primary, fontSize: '16px', fontWeight: 'bold', letterSpacing: '1px' }}>
+            TERMINAL SETTINGS
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{
+            padding: '4px 8px',
+            background: dbInitialized ? '#0a3a0a' : '#3a0a0a',
+            border: `1px solid ${dbInitialized ? '#00ff00' : '#ff0000'}`,
+            borderRadius: '3px'
+          }}>
+            <span style={{ color: dbInitialized ? '#00ff00' : '#ff0000', fontSize: '9px', fontWeight: 'bold' }}>
+              <Database size={10} style={{ display: 'inline', marginRight: '4px' }} />
+              SQLite: {dbInitialized ? 'CONNECTED' : 'DISCONNECTED'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Message Banner */}
+      {message && (
+        <div style={{
+          padding: '8px 16px',
+          background: message.type === 'success' ? '#0a3a0a' : '#3a0a0a',
+          borderBottom: `1px solid ${message.type === 'success' ? '#00ff00' : '#ff0000'}`,
+          color: message.type === 'success' ? '#00ff00' : '#ff0000',
+          fontSize: '10px',
+          flexShrink: 0
+        }}>
+          {message.text}
+        </div>
+      )}
+
+      {/* Main Layout */}
+      <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
+
+        {/* Sidebar Navigation */}
+        <div style={{ width: '220px', borderRight: '1px solid #1a1a1a', background: colors.panel, flexShrink: 0 }}>
+          <div style={{ padding: '16px 0' }}>
+            {[
+              { id: 'credentials', icon: Lock, label: 'Credentials' },
+              { id: 'llm', icon: Bot, label: 'LLM Configuration' },
+              { id: 'dataConnections', icon: Database, label: 'Data Sources' },
+              { id: 'backtesting', icon: Activity, label: 'Backtesting Providers' },
+              { id: 'terminalConfig', icon: SettingsIcon, label: 'Tab Layout' },
+              { id: 'terminal', icon: Terminal, label: 'Appearance' },
+              { id: 'language', icon: Globe, label: 'Language' }
+            ].map((item) => (
+              <div
+                key={item.id}
+                onClick={() => setActiveSection(item.id as any)}
+                style={{
+                  padding: '12px 16px',
+                  cursor: 'pointer',
+                  background: activeSection === item.id ? '#1a1a1a' : 'transparent',
+                  borderLeft: activeSection === item.id ? `3px solid ${colors.primary}` : '3px solid transparent',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  if (activeSection !== item.id) e.currentTarget.style.background = '#151515';
+                }}
+                onMouseLeave={(e) => {
+                  if (activeSection !== item.id) e.currentTarget.style.background = 'transparent';
+                }}
+              >
+                <item.icon size={16} color={activeSection === item.id ? colors.primary : colors.text} />
+                <span style={{ color: colors.text, fontSize: '11px', fontWeight: activeSection === item.id ? 'bold' : 'normal' }}>
+                  {item.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '20px', minHeight: 0 }}>
+
+            {/* Credentials Section - Predefined API Keys */}
+            {activeSection === 'credentials' && (
+              <div>
+                <div style={{ marginBottom: '24px' }}>
+                  <h2 style={{ color: colors.primary, fontSize: '14px', fontWeight: 'bold', marginBottom: '8px' }}>
+                    API KEY MANAGEMENT
+                  </h2>
+                  <p style={{ color: colors.text, fontSize: '10px' }}>
+                    Configure API keys for data providers. All keys are stored locally and encrypted.
+                  </p>
+                </div>
+
+                {/* Predefined API Key Fields */}
+                <div style={{ display: 'grid', gap: '16px' }}>
+                  {PREDEFINED_API_KEYS.map(({ key, label, description }) => (
+                    <div
+                      key={key}
+                      style={{
+                        background: colors.panel,
+                        border: '1px solid #1a1a1a',
+                        padding: '16px',
+                        borderRadius: '4px'
+                      }}
+                    >
+                      <h3 style={{ color: colors.primary, fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>
+                        {label}
+                      </h3>
+                      <p style={{ color: colors.text, fontSize: '9px', marginBottom: '12px', opacity: 0.7 }}>
+                        {description}
+                      </p>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', alignItems: 'end' }}>
+                        <div>
+                          <label style={{ color: colors.text, fontSize: '9px', display: 'block', marginBottom: '4px' }}>
+                            API KEY
+                          </label>
+                          <input
+                            type="password"
+                            value={apiKeys[key] || ''}
+                            onChange={(e) => setApiKeys({ ...apiKeys, [key]: e.target.value })}
+                            placeholder="Enter API key"
+                            style={{
+                              width: '100%',
+                              background: colors.background,
+                              border: '1px solid #2a2a2a',
+                              color: colors.text,
+                              padding: '8px',
+                              fontSize: '10px',
+                              borderRadius: '3px',
+                              fontFamily: 'monospace'
+                            }}
+                          />
+                        </div>
+                        <button
+                          onClick={() => handleSaveApiKeyField(key, apiKeys[key] || '')}
+                          disabled={loading || !apiKeys[key]}
+                          style={{
+                            background: apiKeys[key] ? colors.primary : '#333',
+                            color: colors.text,
+                            border: 'none',
+                            padding: '8px 16px',
+                            fontSize: '10px',
+                            fontWeight: 'bold',
+                            cursor: (loading || !apiKeys[key]) ? 'not-allowed' : 'pointer',
+                            borderRadius: '3px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            opacity: (loading || !apiKeys[key]) ? 0.5 : 1,
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          <Save size={14} />
+                          SAVE
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* LLM Configuration Section */}
+            {activeSection === 'llm' && (
+              <div>
+                <div style={{ marginBottom: '24px' }}>
+                  <h2 style={{ color: colors.primary, fontSize: '14px', fontWeight: 'bold', marginBottom: '8px' }}>
+                    LLM CONFIGURATION
+                  </h2>
+                  <p style={{ color: colors.text, fontSize: '10px' }}>
+                    Configure AI providers for the Chat tab. Changes here are reflected in both Chat and Settings screens.
+                  </p>
+                </div>
+
+                {/* Provider Selection */}
+                <div style={{ marginBottom: '20px' }}>
+                  <h3 style={{ color: colors.text, fontSize: '12px', fontWeight: 'bold', marginBottom: '8px' }}>
+                    Select Active Provider
+                  </h3>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {llmConfigs.map(config => (
+                      <button
+                        key={config.provider}
+                        onClick={() => setActiveProvider(config.provider)}
+                        style={{
+                          background: activeProvider === config.provider ? colors.primary : colors.panel,
+                          color: activeProvider === config.provider ? colors.background : colors.text,
+                          border: `1px solid ${activeProvider === config.provider ? colors.primary : '#2a2a2a'}`,
+                          padding: '8px 16px',
+                          fontSize: '10px',
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          borderRadius: '3px',
+                          textTransform: 'uppercase'
+                        }}
+                      >
+                        {config.provider}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Current Provider Config */}
+                {getCurrentLLMConfig() && (
+                  <div style={{
+                    background: colors.panel,
+                    border: '1px solid #1a1a1a',
+                    padding: '16px',
+                    marginBottom: '20px',
+                    borderRadius: '4px'
+                  }}>
+                    <h3 style={{ color: colors.text, fontSize: '12px', fontWeight: 'bold', marginBottom: '12px' }}>
+                      {getCurrentLLMConfig()!.provider.toUpperCase()} Configuration
+                    </h3>
+
+                    <div style={{ display: 'grid', gap: '12px' }}>
+                      {getCurrentLLMConfig()!.provider !== 'ollama' && (
+                        <div>
+                          <label style={{ color: colors.text, fontSize: '9px', display: 'block', marginBottom: '4px' }}>
+                            API KEY *
+                          </label>
+                          <input
+                            type="password"
+                            value={getCurrentLLMConfig()!.api_key || ''}
+                            onChange={(e) => updateLLMConfig(activeProvider, 'api_key', e.target.value)}
+                            placeholder={`Enter ${activeProvider} API key`}
+                            style={{
+                              width: '100%',
+                              background: colors.background,
+                              border: '1px solid #2a2a2a',
+                              color: colors.text,
+                              padding: '8px',
+                              fontSize: '10px',
+                              borderRadius: '3px'
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      {(getCurrentLLMConfig()!.provider === 'ollama' || getCurrentLLMConfig()!.provider === 'deepseek' || getCurrentLLMConfig()!.provider === 'openrouter') && (
+                        <div>
+                          <label style={{ color: colors.text, fontSize: '9px', display: 'block', marginBottom: '4px' }}>
+                            BASE URL
+                          </label>
+                          <input
+                            type="text"
+                            value={getCurrentLLMConfig()!.base_url || ''}
+                            onChange={(e) => updateLLMConfig(activeProvider, 'base_url', e.target.value)}
+                            placeholder={getCurrentLLMConfig()!.provider === 'ollama' ? 'http://localhost:11434' : 'Base URL'}
+                            style={{
+                              width: '100%',
+                              background: colors.background,
+                              border: '1px solid #2a2a2a',
+                              color: colors.text,
+                              padding: '8px',
+                              fontSize: '10px',
+                              borderRadius: '3px'
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                          <label style={{ color: colors.text, fontSize: '9px' }}>
+                            MODEL
+                          </label>
+                          {getCurrentLLMConfig()!.provider === 'ollama' && (
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                              <button
+                                onClick={fetchOllamaModels}
+                                disabled={ollamaLoading}
+                                style={{
+                                  background: 'transparent',
+                                  border: '1px solid #2a2a2a',
+                                  color: colors.primary,
+                                  padding: '4px 8px',
+                                  fontSize: '9px',
+                                  cursor: ollamaLoading ? 'not-allowed' : 'pointer',
+                                  borderRadius: '3px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  opacity: ollamaLoading ? 0.5 : 1
+                                }}
+                              >
+                                <RefreshCw size={10} />
+                                {ollamaLoading ? 'LOADING...' : 'REFRESH'}
+                              </button>
+                              <button
+                                onClick={() => setUseManualEntry(!useManualEntry)}
+                                style={{
+                                  background: 'transparent',
+                                  border: '1px solid #2a2a2a',
+                                  color: colors.text,
+                                  padding: '4px 8px',
+                                  fontSize: '9px',
+                                  cursor: 'pointer',
+                                  borderRadius: '3px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                <Edit3 size={10} />
+                                {useManualEntry ? 'DROPDOWN' : 'MANUAL'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {getCurrentLLMConfig()!.provider === 'ollama' && !useManualEntry ? (
+                          <>
+                            <select
+                              value={getCurrentLLMConfig()!.model}
+                              onChange={(e) => updateLLMConfig(activeProvider, 'model', e.target.value)}
+                              disabled={ollamaLoading || ollamaModels.length === 0}
+                              style={{
+                                width: '100%',
+                                background: colors.background,
+                                border: '1px solid #2a2a2a',
+                                color: colors.text,
+                                padding: '8px',
+                                fontSize: '10px',
+                                borderRadius: '3px',
+                                cursor: ollamaLoading || ollamaModels.length === 0 ? 'not-allowed' : 'pointer',
+                                appearance: 'none',
+                                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ea580c' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+                                backgroundRepeat: 'no-repeat',
+                                backgroundPosition: 'right 8px center',
+                                paddingRight: '32px'
+                              }}
+                            >
+                              {ollamaModels.length === 0 && !ollamaLoading && (
+                                <option value="">No models found</option>
+                              )}
+                              {ollamaLoading && (
+                                <option value="">Loading models...</option>
+                              )}
+                              {ollamaModels.map((model) => (
+                                <option key={model} value={model}>
+                                  {model}
+                                </option>
+                              ))}
+                            </select>
+                            {ollamaError && (
+                              <div style={{
+                                marginTop: '4px',
+                                padding: '6px 8px',
+                                background: '#3a0a0a',
+                                border: '1px solid #ff0000',
+                                borderRadius: '3px',
+                                fontSize: '9px',
+                                color: '#ff0000'
+                              }}>
+                                {ollamaError}
+                              </div>
+                            )}
+                            {ollamaModels.length > 0 && (
+                              <div style={{ marginTop: '4px', fontSize: '9px', color: '#00ff00' }}>
+                                ✓ Found {ollamaModels.length} model{ollamaModels.length !== 1 ? 's' : ''}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <input
+                            type="text"
+                            value={getCurrentLLMConfig()!.model}
+                            onChange={(e) => updateLLMConfig(activeProvider, 'model', e.target.value)}
+                            placeholder="Model name"
+                            style={{
+                              width: '100%',
+                              background: colors.background,
+                              border: '1px solid #2a2a2a',
+                              color: colors.text,
+                              padding: '8px',
+                              fontSize: '10px',
+                              borderRadius: '3px'
+                            }}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Global Settings */}
+                <div style={{
+                  background: colors.panel,
+                  border: '1px solid #1a1a1a',
+                  padding: '16px',
+                  marginBottom: '20px',
+                  borderRadius: '4px'
+                }}>
+                  <h3 style={{ color: colors.text, fontSize: '12px', fontWeight: 'bold', marginBottom: '12px' }}>
+                    Global AI Settings
+                  </h3>
+
+                  <div style={{ display: 'grid', gap: '12px' }}>
+                    <div>
+                      <label style={{ color: colors.text, fontSize: '9px', display: 'block', marginBottom: '4px' }}>
+                        TEMPERATURE (0.0 - 2.0)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="2"
+                        step="0.1"
+                        value={llmGlobalSettings.temperature}
+                        onChange={(e) => setLlmGlobalSettings({ ...llmGlobalSettings, temperature: parseFloat(e.target.value) })}
+                        style={{
+                          width: '100%',
+                          background: colors.background,
+                          border: '1px solid #2a2a2a',
+                          color: colors.text,
+                          padding: '8px',
+                          fontSize: '10px',
+                          borderRadius: '3px'
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ color: colors.text, fontSize: '9px', display: 'block', marginBottom: '4px' }}>
+                        MAX TOKENS
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="32000"
+                        value={llmGlobalSettings.max_tokens}
+                        onChange={(e) => setLlmGlobalSettings({ ...llmGlobalSettings, max_tokens: parseInt(e.target.value) })}
+                        style={{
+                          width: '100%',
+                          background: colors.background,
+                          border: '1px solid #2a2a2a',
+                          color: colors.text,
+                          padding: '8px',
+                          fontSize: '10px',
+                          borderRadius: '3px'
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ color: colors.text, fontSize: '9px', display: 'block', marginBottom: '4px' }}>
+                        SYSTEM PROMPT
+                      </label>
+                      <textarea
+                        value={llmGlobalSettings.system_prompt}
+                        onChange={(e) => setLlmGlobalSettings({ ...llmGlobalSettings, system_prompt: e.target.value })}
+                        rows={4}
+                        style={{
+                          width: '100%',
+                          background: colors.background,
+                          border: '1px solid #2a2a2a',
+                          color: colors.text,
+                          padding: '8px',
+                          fontSize: '10px',
+                          borderRadius: '3px',
+                          resize: 'vertical'
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleSaveLLMConfig}
+                  disabled={loading}
+                  style={{
+                    background: colors.primary,
+                    color: colors.text,
+                    border: 'none',
+                    padding: '10px 20px',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    borderRadius: '3px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    opacity: loading ? 0.5 : 1
+                  }}
+                >
+                  <Save size={16} />
+                  {loading ? 'SAVING...' : 'SAVE LLM CONFIGURATION'}
+                </button>
+              </div>
+            )}
+
+            {/* Terminal Tab Configuration Section */}
+            {activeSection === 'terminalConfig' && (
+              <TerminalConfigPanel />
+            )}
+
+            {/* Terminal Appearance Section */}
+            {activeSection === 'terminal' && (
+              <div style={{ fontFamily: '"IBM Plex Mono", "Consolas", monospace' }}>
+                {/* Header */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  marginBottom: '24px',
+                  paddingBottom: '12px',
+                  borderBottom: `2px solid ${colors.primary}`
+                }}>
+                  <Terminal size={20} color={colors.primary} style={{ filter: `drop-shadow(0 0 4px ${colors.primary})` }} />
+                  <h2 style={{
+                    color: colors.primary,
+                    fontSize: '16px',
+                    fontWeight: 700,
+                    letterSpacing: '1px',
+                    margin: 0,
+                    textShadow: `0 0 10px ${colors.primary}40`
+                  }}>
+                    TERMINAL CONFIGURATION
+                  </h2>
+                </div>
+
+                {/* Description */}
+                <div style={{
+                  marginBottom: '20px',
+                  padding: '12px',
+                  backgroundColor: '#1A1A1A',
+                  border: '1px solid #2A2A2A',
+                  borderLeft: `3px solid ${colors.secondary}`
+                }}>
+                  <p style={{
+                    color: colors.textMuted,
+                    fontSize: '10px',
+                    margin: 0,
+                    lineHeight: '1.6'
+                  }}>
+                    Customize terminal appearance including fonts, colors, and themes. Changes apply across the entire application.
+                  </p>
+                </div>
+
+                {/* Font Settings */}
+                <div style={{
+                  background: '#0F0F0F',
+                  border: '1px solid #2A2A2A',
+                  borderLeft: `3px solid ${colors.primary}`,
+                  borderRadius: '4px',
+                  padding: '16px',
+                  marginBottom: '20px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                    <Type size={18} color={colors.primary} style={{ filter: `drop-shadow(0 0 2px ${colors.primary})` }} />
+                    <span style={{ color: colors.primary, fontSize: '14px', fontWeight: 'bold', letterSpacing: '0.5px' }}>FONT SETTINGS</span>
+                  </div>
+
+                  {/* Font Family */}
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{ color: colors.text, fontSize: '10px', display: 'block', marginBottom: '6px', fontWeight: 600, letterSpacing: '0.5px' }}>FONT FAMILY</label>
+                    <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} style={{
+                      width: '100%',
+                      padding: '10px',
+                      background: colors.background,
+                      border: `1px solid #2A2A2A`,
+                      color: colors.text,
+                      borderRadius: '3px',
+                      fontSize: '11px',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                      appearance: 'none',
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23FFA500' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'right 10px center',
+                      paddingRight: '32px'
+                    }}>
+                      {FONT_FAMILIES.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Base Font Size */}
+                  <div style={{ marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <label style={{ color: colors.text, fontSize: '10px', fontWeight: 600, letterSpacing: '0.5px' }}>BASE FONT SIZE</label>
+                      <span style={{
+                        color: colors.primary,
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        padding: '2px 8px',
+                        background: `${colors.primary}20`,
+                        borderRadius: '3px',
+                        border: `1px solid ${colors.primary}40`
+                      }}>{baseSize}px</span>
+                    </div>
+                    <input type="range" min="9" max="18" value={baseSize} onChange={(e) => setBaseSize(Number(e.target.value))} style={{
+                      width: '100%',
+                      height: '6px',
+                      background: `linear-gradient(to right, ${colors.primary}40 0%, ${colors.primary}40 ${((baseSize - 9) / 9) * 100}%, #2A2A2A ${((baseSize - 9) / 9) * 100}%, #2A2A2A 100%)`,
+                      borderRadius: '3px',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
+                      <span style={{ color: colors.textMuted, fontSize: '9px', fontWeight: 500 }}>Small (9px)</span>
+                      <span style={{ color: colors.textMuted, fontSize: '9px', fontWeight: 500 }}>Large (18px)</span>
+                    </div>
+                  </div>
+
+                  {/* Font Weight */}
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{ color: colors.text, fontSize: '10px', display: 'block', marginBottom: '6px', fontWeight: 600, letterSpacing: '0.5px' }}>FONT WEIGHT</label>
+                    <select value={fontWeight} onChange={(e) => setFontWeight(e.target.value as FontSettings['weight'])} style={{
+                      width: '100%',
+                      padding: '10px',
+                      background: colors.background,
+                      border: '1px solid #2A2A2A',
+                      color: colors.text,
+                      borderRadius: '3px',
+                      fontSize: '11px',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                      appearance: 'none',
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23FFA500' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'right 10px center',
+                      paddingRight: '32px'
+                    }}>
+                      <option value="normal">Normal (400)</option>
+                      <option value="semibold">Semi-Bold (600)</option>
+                      <option value="bold">Bold (700)</option>
+                    </select>
+                  </div>
+
+                  {/* Font Style */}
+                  <div>
+                    <label style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      cursor: 'pointer',
+                      padding: '10px',
+                      background: fontItalic ? `${colors.primary}10` : 'transparent',
+                      border: `1px solid ${fontItalic ? colors.primary : '#2A2A2A'}`,
+                      borderRadius: '3px',
+                      transition: 'all 0.2s'
+                    }}>
+                      <input type="checkbox" checked={fontItalic} onChange={(e) => setFontItalic(e.target.checked)} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
+                      <span style={{ color: colors.text, fontSize: '10px', fontWeight: 600, letterSpacing: '0.5px' }}>ENABLE ITALIC STYLE</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Color Theme */}
+                <div style={{
+                  background: '#0F0F0F',
+                  border: '1px solid #2A2A2A',
+                  borderLeft: `3px solid ${colors.primary}`,
+                  borderRadius: '4px',
+                  padding: '16px',
+                  marginBottom: '20px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                    <Palette size={18} color={colors.primary} style={{ filter: `drop-shadow(0 0 2px ${colors.primary})` }} />
+                    <span style={{ color: colors.primary, fontSize: '14px', fontWeight: 'bold', letterSpacing: '0.5px' }}>COLOR THEME</span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '12px' }}>
+                    {Object.entries(COLOR_THEMES).map(([key, themeObj]) => {
+                      const isActive = selectedTheme === key;
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => setSelectedTheme(key)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            padding: '12px',
+                            background: isActive ? '#1A1A1A' : 'transparent',
+                            border: `1px solid ${isActive ? colors.primary : '#2A2A2A'}`,
+                            borderLeft: `3px solid ${isActive ? colors.primary : '#2A2A2A'}`,
+                            borderRadius: '3px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            position: 'relative',
+                            overflow: 'hidden'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isActive) {
+                              e.currentTarget.style.background = '#151515';
+                              e.currentTarget.style.borderColor = '#3A3A3A';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isActive) {
+                              e.currentTarget.style.background = 'transparent';
+                              e.currentTarget.style.borderColor = '#2A2A2A';
+                            }
+                          }}
+                        >
+                          {/* Color Swatches */}
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <div style={{
+                              width: '24px',
+                              height: '24px',
+                              background: themeObj.primary,
+                              border: '1px solid #2A2A2A',
+                              borderRadius: '3px',
+                              boxShadow: isActive ? `0 0 8px ${themeObj.primary}60` : 'none'
+                            }} title="Primary" />
+                            <div style={{
+                              width: '24px',
+                              height: '24px',
+                              background: themeObj.secondary,
+                              border: '1px solid #2A2A2A',
+                              borderRadius: '3px',
+                              boxShadow: isActive ? `0 0 8px ${themeObj.secondary}60` : 'none'
+                            }} title="Secondary" />
+                            <div style={{
+                              width: '24px',
+                              height: '24px',
+                              background: themeObj.alert,
+                              border: '1px solid #2A2A2A',
+                              borderRadius: '3px',
+                              boxShadow: isActive ? `0 0 8px ${themeObj.alert}60` : 'none'
+                            }} title="Alert" />
+                          </div>
+
+                          <span style={{
+                            color: isActive ? colors.primary : colors.text,
+                            fontSize: '11px',
+                            flex: 1,
+                            fontWeight: isActive ? 700 : 500,
+                            letterSpacing: '0.5px'
+                          }}>{themeObj.name}</span>
+
+                          {isActive && (
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}>
+                              <Check size={14} color={colors.success} />
+                              <div style={{
+                                width: '6px',
+                                height: '6px',
+                                borderRadius: '50%',
+                                background: colors.success,
+                                boxShadow: `0 0 6px ${colors.success}`
+                              }} />
+                            </div>
+                          )}
+
+                          {isActive && (
+                            <div style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              height: '1px',
+                              background: `linear-gradient(90deg, transparent, ${colors.primary}, transparent)`,
+                              opacity: 0.5
+                            }} />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Default Timezone Selection */}
+                <div style={{
+                  background: '#0F0F0F',
+                  border: '1px solid #2A2A2A',
+                  borderLeft: `3px solid ${colors.primary}`,
+                  borderRadius: '4px',
+                  padding: '16px',
+                  marginBottom: '20px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                    <Clock size={18} color={colors.primary} style={{ filter: `drop-shadow(0 0 2px ${colors.primary})` }} />
+                    <span style={{ color: colors.text, fontWeight: 'bold', fontSize: '12px' }}>
+                      DEFAULT TIMEZONE
+                    </span>
+                  </div>
+                  <p style={{ color: colors.textMuted, fontSize: '10px', marginBottom: '12px' }}>
+                    Set the default timezone displayed in the navigation bar. Dashboard widgets can use their own timezone settings.
+                  </p>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(4, 1fr)',
+                    gap: '8px',
+                    maxHeight: '280px',
+                    overflowY: 'auto',
+                    paddingRight: '4px'
+                  }}>
+                    {timezoneOptions.map((tz) => (
+                      <button
+                        key={tz.id}
+                        onClick={() => setDefaultTimezone(tz.id)}
+                        style={{
+                          background: defaultTimezone.id === tz.id ? `${colors.primary}20` : '#1A1A1A',
+                          border: `1px solid ${defaultTimezone.id === tz.id ? colors.primary : '#2A2A2A'}`,
+                          borderRadius: '4px',
+                          padding: '12px 8px',
+                          cursor: 'pointer',
+                          textAlign: 'center',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (defaultTimezone.id !== tz.id) {
+                            e.currentTarget.style.borderColor = colors.primary;
+                            e.currentTarget.style.background = '#2A2A2A';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (defaultTimezone.id !== tz.id) {
+                            e.currentTarget.style.borderColor = '#2A2A2A';
+                            e.currentTarget.style.background = '#1A1A1A';
+                          }
+                        }}
+                      >
+                        <div style={{
+                          color: defaultTimezone.id === tz.id ? colors.primary : colors.text,
+                          fontWeight: 'bold',
+                          fontSize: '11px',
+                          marginBottom: '4px'
+                        }}>
+                          {tz.shortLabel}
+                        </div>
+                        <div style={{
+                          color: colors.textMuted,
+                          fontSize: '9px'
+                        }}>
+                          {tz.label.split('(')[0].trim()}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Key Mapping Configuration */}
+                <div style={{
+                  background: '#0F0F0F',
+                  border: '1px solid #2A2A2A',
+                  borderLeft: `3px solid ${colors.primary}`,
+                  borderRadius: '4px',
+                  padding: '16px',
+                  marginBottom: '20px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                    <Terminal size={18} color={colors.primary} style={{ filter: `drop-shadow(0 0 2px ${colors.primary})` }} />
+                    <span style={{ color: colors.primary, fontSize: '14px', fontWeight: 'bold', letterSpacing: '0.5px' }}>FUNCTION KEY MAPPINGS</span>
+                  </div>
+
+                  <div style={{
+                    marginBottom: '12px',
+                    padding: '10px',
+                    backgroundColor: '#1A1A1A',
+                    border: '1px solid #2A2A2A',
+                    borderRadius: '3px'
+                  }}>
+                    <p style={{
+                      color: colors.textMuted,
+                      fontSize: '9px',
+                      margin: 0,
+                      lineHeight: '1.5'
+                    }}>
+                      Configure which tab or action each function key (F1-F12) should trigger. Changes will be reflected in the status bar and keyboard shortcuts.
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
+                    {Object.entries(keyMappings).map(([key, action]) => (
+                      <div key={key} style={{
+                        background: '#1A1A1A',
+                        border: '1px solid #2A2A2A',
+                        borderRadius: '3px',
+                        padding: '12px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                          <span style={{
+                            backgroundColor: colors.primary,
+                            color: '#000',
+                            padding: '4px 8px',
+                            fontSize: '9px',
+                            fontWeight: 'bold',
+                            borderRadius: '2px',
+                            minWidth: '40px',
+                            textAlign: 'center'
+                          }}>
+                            {key}
+                          </span>
+                          <span style={{ color: colors.textMuted, fontSize: '10px' }}>→</span>
+                        </div>
+                        <select
+                          value={action}
+                          onChange={(e) => setKeyMappings({ ...keyMappings, [key]: e.target.value })}
+                          style={{
+                            width: '100%',
+                            padding: '8px',
+                            background: colors.background,
+                            border: '1px solid #2A2A2A',
+                            color: colors.text,
+                            borderRadius: '3px',
+                            fontSize: '10px',
+                            fontWeight: 500,
+                            cursor: 'pointer',
+                            appearance: 'none',
+                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23FFA500' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: 'right 8px center',
+                            paddingRight: '28px'
+                          }}
+                        >
+                          <option value="dashboard">Dashboard</option>
+                          <option value="markets">Markets</option>
+                          <option value="news">News</option>
+                          <option value="portfolio">Portfolio</option>
+                          <option value="analytics">Analytics</option>
+                          <option value="watchlist">Watchlist</option>
+                          <option value="equity-research">Equity Research</option>
+                          <option value="screener">Screener</option>
+                          <option value="trading">Trading</option>
+                          <option value="chat">AI Chat</option>
+                          <option value="fullscreen">Toggle Fullscreen</option>
+                          <option value="profile">Profile</option>
+                          <option value="settings">Settings</option>
+                          <option value="forum">Forum</option>
+                          <option value="marketplace">Marketplace</option>
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Live Preview Panel */}
+                <div style={{
+                  background: theme.colors.background,
+                  border: `2px solid ${theme.colors.primary}`,
+                  borderRadius: '4px',
+                  padding: '20px',
+                  marginBottom: '20px',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: '2px',
+                    background: `linear-gradient(90deg, transparent, ${theme.colors.primary}, transparent)`,
+                    opacity: 0.5
+                  }} />
+
+                  <div style={{
+                    color: theme.colors.textMuted,
+                    fontSize: '9px',
+                    fontWeight: 600,
+                    letterSpacing: '1px',
+                    marginBottom: '12px',
+                    opacity: 0.7
+                  }}>
+                    LIVE PREVIEW
+                  </div>
+
+                  <div style={{
+                    color: theme.colors.primary,
+                    fontSize: `${baseSize + 2}px`,
+                    fontFamily: `${fontFamily}, monospace`,
+                    fontWeight: fontWeight === 'normal' ? '400' : fontWeight === 'semibold' ? '600' : '700',
+                    fontStyle: fontItalic ? 'italic' : 'normal',
+                    marginBottom: '12px',
+                    letterSpacing: '0.5px'
+                  }}>
+                    FINCEPT TERMINAL PREVIEW
+                  </div>
+
+                  <div style={{
+                    color: theme.colors.text,
+                    fontSize: `${baseSize}px`,
+                    fontFamily: `${fontFamily}, monospace`,
+                    fontWeight: fontWeight === 'normal' ? '400' : fontWeight === 'semibold' ? '600' : '700',
+                    fontStyle: fontItalic ? 'italic' : 'normal',
+                    marginBottom: '8px',
+                    lineHeight: '1.5'
+                  }}>
+                    Body Text: Real-time market analysis and portfolio tracking
+                  </div>
+
+                  <div style={{
+                    color: theme.colors.textMuted,
+                    fontSize: `${baseSize - 1}px`,
+                    fontFamily: `${fontFamily}, monospace`,
+                    fontWeight: fontWeight === 'normal' ? '400' : fontWeight === 'semibold' ? '600' : '700',
+                    fontStyle: fontItalic ? 'italic' : 'normal',
+                    marginBottom: '12px',
+                    lineHeight: '1.5'
+                  }}>
+                    Small Text: Market data, timestamps, and metadata
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '16px', marginTop: '12px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        background: theme.colors.success,
+                        boxShadow: `0 0 8px ${theme.colors.success}`
+                      }} />
+                      <span style={{ color: theme.colors.success, fontSize: '10px', fontWeight: 600 }}>CONNECTED</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        background: theme.colors.alert,
+                        boxShadow: `0 0 8px ${theme.colors.alert}`
+                      }} />
+                      <span style={{ color: theme.colors.alert, fontSize: '10px', fontWeight: 600 }}>ALERT</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        background: theme.colors.warning,
+                        boxShadow: `0 0 8px ${theme.colors.warning}`
+                      }} />
+                      <span style={{ color: theme.colors.warning, fontSize: '10px', fontWeight: 600 }}>WARNING</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button onClick={handleSaveTerminalAppearance} style={{
+                    flex: 1,
+                    background: colors.primary,
+                    color: '#000000',
+                    border: 'none',
+                    padding: '14px',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    letterSpacing: '0.5px',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    transition: 'all 0.2s',
+                    boxShadow: `0 0 12px ${colors.primary}40`
+                  }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.boxShadow = `0 0 20px ${colors.primary}60`;
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.boxShadow = `0 0 12px ${colors.primary}40`;
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}>
+                    <Save size={16} /> SAVE CONFIGURATION
+                  </button>
+                  <button onClick={handleResetTerminalAppearance} style={{
+                    background: 'transparent',
+                    color: colors.textMuted,
+                    border: `1px solid #2A2A2A`,
+                    padding: '14px 20px',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    letterSpacing: '0.5px',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    transition: 'all 0.2s'
+                  }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = colors.alert;
+                      e.currentTarget.style.color = colors.alert;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = '#2A2A2A';
+                      e.currentTarget.style.color = colors.textMuted;
+                    }}>
+                    <RefreshCw size={16} /> RESET
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Data Sources Section (Unified WebSocket + REST API) */}
+            {activeSection === 'dataConnections' && (
+              <DataSourcesPanel colors={colors} />
+            )}
+
+            {/* Backtesting Providers Section */}
+            {activeSection === 'backtesting' && (
+              <BacktestingProvidersPanel colors={{
+                background: colors.background,
+                surface: colors.panel,
+                text: colors.text,
+                textSecondary: colors.textMuted,
+                border: colors.textMuted,
+                accent: colors.accent,
+                success: colors.success,
+                error: colors.alert
+              }} />
+            )}
+
+            {/* Language Section */}
+            {activeSection === 'language' && (
+              <div style={{ padding: '20px' }}>
+                <LanguageSelector />
+              </div>
+            )}
+
+            {/* Other sections can be added here */}
+
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div style={{
+        borderTop: `2px solid ${colors.primary}`,
+        padding: '8px 16px',
+        background: `linear-gradient(180deg, ${colors.panel} 0%, #1a1a1a 100%)`,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexShrink: 0,
+        flexWrap: 'wrap',
+        gap: '12px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '9px' }}>
+          <span style={{ color: colors.primary, fontWeight: 'bold' }}>SETTINGS v2.0.0</span>
+          <span style={{ color: colors.text }}>|</span>
+          <span style={{ color: colors.text }}>Database: SQLite</span>
+          <span style={{ color: colors.text }}>|</span>
+          <span style={{ color: colors.text }}>Storage: File-based</span>
+        </div>
+        <div style={{ fontSize: '9px', color: colors.text }}>
+          All data stored securely in fincept_terminal.db
+        </div>
+      </div>
+    </div>
+  );
+}
