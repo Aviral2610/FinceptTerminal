@@ -4,6 +4,7 @@ import { fetchNewsWithCache, type NewsArticle, getRSSFeedCount, getActiveSources
 import { contextRecorderService } from '../../services/contextRecorderService';
 import RecordingControlPanel from '../common/RecordingControlPanel';
 import { TimezoneSelector } from '../common/TimezoneSelector';
+import { useTranslation } from 'react-i18next';
 
 // Extend Window interface for Tauri
 declare global {
@@ -13,6 +14,7 @@ declare global {
 }
 
 const NewsTab: React.FC = () => {
+  const { t } = useTranslation('news');
   const { colors, fontSize, fontFamily, fontWeight, fontStyle } = useTerminalTheme();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [activeFilter, setActiveFilter] = useState('ALL');
@@ -150,7 +152,7 @@ const NewsTab: React.FC = () => {
   // Generate continuous ticker text with all news items
   const generateContinuousTickerText = () => {
     if (newsArticles.length === 0) {
-      return 'Loading news feeds...';
+      return t('messages.loadingFeeds');
     }
 
     // Create a long string of all news items
@@ -231,13 +233,13 @@ const NewsTab: React.FC = () => {
       }}>
         {/* Main Status Line */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', marginBottom: '2px' }}>
-          <span style={{ color: colors.primary, fontWeight: 'bold' }}>FINCEPT TERMINAL PROFESSIONAL NEWS</span>
+          <span style={{ color: colors.primary, fontWeight: 'bold' }}>{t('title')}</span>
           <span style={{ color: colors.text }}>|</span>
-          <span style={{ color: colors.alert, fontWeight: 'bold', animation: 'blink 1s infinite' }}>LIVE FEED</span>
+          <span style={{ color: colors.alert, fontWeight: 'bold', animation: 'blink 1s infinite' }}>{t('header.liveFeed')}</span>
           <span style={{ color: colors.text }}>|</span>
-          <span style={{ color: colors.warning }}>ALERTS: {alertCount}</span>
+          <span style={{ color: colors.warning }}>{t('header.alerts')}: {alertCount}</span>
           <span style={{ color: colors.text }}>|</span>
-          <span style={{ color: colors.secondary }}>● {getRSSFeedCount()} SOURCES</span>
+          <span style={{ color: colors.secondary }}>● {getRSSFeedCount()} {t('header.sources')}</span>
           <span style={{ color: colors.text }}>|</span>
           <TimezoneSelector compact />
           <span style={{ color: colors.text }}>|</span>
@@ -259,7 +261,7 @@ const NewsTab: React.FC = () => {
             }}
             title="Refresh news feeds"
           >
-            🔄 {loading ? 'UPDATING...' : 'REFRESH'}
+            🔄 {loading ? t('header.updating') : t('header.refresh')}
           </button>
           <span style={{ color: colors.text }}>|</span>
           <button
@@ -300,7 +302,7 @@ const NewsTab: React.FC = () => {
             boxShadow: `0 4px 8px rgba(0,0,0,0.3)`
           }}>
             <div style={{ fontSize: '11px', color: colors.warning, fontWeight: 'bold', marginBottom: '6px' }}>
-              AUTO-REFRESH INTERVAL
+              {t('autoRefresh.title')}
             </div>
             {[1, 2, 5, 10, 15, 30].map(min => (
               <button
@@ -322,7 +324,7 @@ const NewsTab: React.FC = () => {
                   textAlign: 'left'
                 }}
               >
-                {min} minute{min > 1 ? 's' : ''}
+                {min} {min > 1 ? t('autoRefresh.minutes') : t('autoRefresh.minute')}
               </button>
             ))}
           </div>
@@ -330,7 +332,7 @@ const NewsTab: React.FC = () => {
 
         {/* News Ticker - Continuous seamless scroll like Bloomberg */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', marginBottom: '2px' }}>
-          <span style={{ color: colors.warning, fontWeight: 'bold' }}>BREAKING:</span>
+          <span style={{ color: colors.warning, fontWeight: 'bold' }}>{t('messages.breaking')}:</span>
           <div className="ticker-wrap" style={{
             flex: 1,
             overflow: 'hidden',
@@ -343,23 +345,23 @@ const NewsTab: React.FC = () => {
             </div>
           </div>
           <span style={{ color: colors.secondary, fontSize: '9px' }}>
-            ● LIVE
+            ● {t('header.live')}
           </span>
         </div>
 
         {/* Sources and Stats */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px', flexWrap: 'wrap' }}>
-          <span style={{ color: colors.textMuted }}>ACTIVE SOURCES:</span>
+          <span style={{ color: colors.textMuted }}>{t('header.activeSources')}:</span>
           {activeSources.slice(0, 12).map((source, idx) => (
             <span key={idx} style={{ color: colors.secondary }}>{source}●</span>
           ))}
           <span style={{ color: colors.text }}>|</span>
-          <span style={{ color: colors.textMuted }}>ARTICLES:</span>
+          <span style={{ color: colors.textMuted }}>{t('header.articles')}:</span>
           <span style={{ color: colors.accent }}>{newsArticles.length}</span>
           <span style={{ color: colors.text }}>|</span>
-          <span style={{ color: colors.textMuted }}>STATUS:</span>
+          <span style={{ color: colors.textMuted }}>{t('header.status')}:</span>
           <span style={{ color: loading ? colors.warning : colors.secondary }}>
-            {loading ? 'UPDATING...' : (isUsingMockData() ? '● DEMO MODE' : '● LIVE')}
+            {loading ? t('header.updating') : (isUsingMockData() ? `● ${t('header.demoMode')}` : `● ${t('header.live')}`)}
           </span>
         </div>
       </div>

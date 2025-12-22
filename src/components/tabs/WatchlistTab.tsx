@@ -15,8 +15,10 @@ import RecordingControlPanel from '../common/RecordingControlPanel';
 import { getBloombergColors, SortCriteria, sortStocks, getNextWatchlistColor } from './watchlist/utils';
 import { useTerminalTheme } from '@/contexts/ThemeContext';
 import { TimezoneSelector } from '../common/TimezoneSelector';
+import { useTranslation } from 'react-i18next';
 
 const WatchlistTab: React.FC = () => {
+  const { t } = useTranslation('watchlist');
   const { colors: themeColors } = useTerminalTheme();
   const BLOOMBERG_COLORS = getBloombergColors();
   const [currentTime, setCurrentTime] = useState(new Date());

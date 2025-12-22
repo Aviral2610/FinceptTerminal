@@ -21,6 +21,7 @@ import { AddWidgetModal } from './dashboard/AddWidgetModal';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { TimezoneSelector } from '../common/TimezoneSelector';
+import { useTranslation } from 'react-i18next';
 
 interface WidgetInstance extends WidgetConfig {
   layout: Layout;
@@ -109,6 +110,7 @@ interface DashboardTabProps {
 }
 
 const DashboardTab: React.FC<DashboardTabProps> = ({ onNavigateToTab }) => {
+  const { t } = useTranslation('dashboard');
   const { colors, fontSize, fontFamily, fontWeight, fontStyle } = useTerminalTheme();
   const [widgets, setWidgets] = useState<WidgetInstance[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -369,13 +371,13 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ onNavigateToTab }) => {
         `}</style>
         <div style={{ textAlign: 'center', maxWidth: '500px' }}>
           <h3 style={{ color: '#ea580c', fontSize: '18px', marginBottom: '10px' }}>
-            Initializing Dashboard
+            {t('loading.title', 'Initializing Dashboard')}
           </h3>
           <p style={{ color: '#a3a3a3', fontSize: '13px', lineHeight: '1.5' }}>
-            Setting up database cache for faster data loading...
+            {t('loading.description', 'Setting up database cache for faster data loading...')}
           </p>
           <p style={{ color: '#787878', fontSize: '11px', marginTop: '10px' }}>
-            This will only take a moment on first launch
+            {t('loading.note', 'This will only take a moment on first launch')}
           </p>
         </div>
       </div>
@@ -463,17 +465,17 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ onNavigateToTab }) => {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ color: colors.primary, fontWeight: 'bold', fontSize: fontSize.subheading }}>
-              CUSTOMIZABLE DASHBOARD
+              {t('header.title', 'CUSTOMIZABLE DASHBOARD')}
             </span>
             <span style={{ color: colors.text }}>|</span>
             <span style={{ color: colors.secondary, fontSize: fontSize.small }}>
-              ● LIVE
+              ● {t('header.live', 'LIVE')}
             </span>
             <span style={{ color: colors.text }}>|</span>
             <TimezoneSelector compact />
             <span style={{ color: colors.text }}>|</span>
             <span style={{ color: colors.textMuted, fontSize: fontSize.small }}>
-              WIDGETS: {widgets.length}
+              {t('header.widgets', 'WIDGETS')}: {widgets.length}
             </span>
           </div>
 
@@ -495,7 +497,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ onNavigateToTab }) => {
               }}
             >
               <Plus size={12} />
-              ADD WIDGET
+              {t('buttons.addWidget', 'ADD WIDGET')}
             </button>
             <button
               onClick={saveLayout}
@@ -514,7 +516,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ onNavigateToTab }) => {
               }}
             >
               <Save size={12} />
-              SAVE LAYOUT
+              {t('buttons.saveLayout', 'SAVE LAYOUT')}
             </button>
             <button
               onClick={resetLayout}
@@ -533,7 +535,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ onNavigateToTab }) => {
               }}
             >
               <RotateCcw size={12} />
-              RESET
+              {t('buttons.reset', 'RESET')}
             </button>
           </div>
         </div>
@@ -549,10 +551,10 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ onNavigateToTab }) => {
         flexShrink: 0
       }}>
         <div style={{ display: 'flex', gap: '16px' }}>
-          <span>💡 <span style={{ color: colors.text }}>Drag widgets to rearrange</span></span>
-          <span>🔧 <span style={{ color: colors.text }}>Resize from bottom-right corner</span></span>
-          <span>✖️ <span style={{ color: colors.text }}>Remove widgets with X button</span></span>
-          <span>📐 <span style={{ color: colors.text }}>Responsive layout - uses full width</span></span>
+          <span>💡 <span style={{ color: colors.text }}>{t('tips.drag', 'Drag widgets to rearrange')}</span></span>
+          <span>🔧 <span style={{ color: colors.text }}>{t('tips.resize', 'Resize from bottom-right corner')}</span></span>
+          <span>✖️ <span style={{ color: colors.text }}>{t('tips.remove', 'Remove widgets with X button')}</span></span>
+          <span>📐 <span style={{ color: colors.text }}>{t('tips.responsive', 'Responsive layout - uses full width')}</span></span>
         </div>
       </div>
 

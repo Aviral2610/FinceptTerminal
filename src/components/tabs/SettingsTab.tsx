@@ -12,8 +12,10 @@ import { LanguageSelector } from '@/components/settings/LanguageSelector';
 import { TerminalConfigPanel } from '@/components/settings/TerminalConfigPanel';
 import { useTimezone, TIMEZONE_OPTIONS } from '@/contexts/TimezoneContext';
 import { Clock } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export default function SettingsTab() {
+  const { t } = useTranslation('settings');
   const { theme, updateTheme, resetTheme, colors, fontSize: themeFontSize, fontFamily: themeFontFamily, fontWeight: themeFontWeight, fontStyle } = useTerminalTheme();
   const { defaultTimezone, setDefaultTimezone, options: timezoneOptions } = useTimezone();
   const [activeSection, setActiveSection] = useState<'credentials' | 'terminal' | 'terminalConfig' | 'llm' | 'dataConnections' | 'backtesting' | 'language'>('credentials');
@@ -522,7 +524,7 @@ export default function SettingsTab() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <SettingsIcon size={20} color={colors.primary} />
           <span style={{ color: colors.primary, fontSize: '16px', fontWeight: 'bold', letterSpacing: '1px' }}>
-            TERMINAL SETTINGS
+            {t('title', 'TERMINAL SETTINGS')}
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -561,13 +563,13 @@ export default function SettingsTab() {
         <div style={{ width: '220px', borderRight: '1px solid #1a1a1a', background: colors.panel, flexShrink: 0 }}>
           <div style={{ padding: '16px 0' }}>
             {[
-              { id: 'credentials', icon: Lock, label: 'Credentials' },
-              { id: 'llm', icon: Bot, label: 'LLM Configuration' },
-              { id: 'dataConnections', icon: Database, label: 'Data Sources' },
-              { id: 'backtesting', icon: Activity, label: 'Backtesting Providers' },
-              { id: 'terminalConfig', icon: SettingsIcon, label: 'Tab Layout' },
-              { id: 'terminal', icon: Terminal, label: 'Appearance' },
-              { id: 'language', icon: Globe, label: 'Language' }
+              { id: 'credentials', icon: Lock, label: t('sidebar.credentials', 'Credentials') },
+              { id: 'llm', icon: Bot, label: t('sidebar.llm', 'LLM Configuration') },
+              { id: 'dataConnections', icon: Database, label: t('sidebar.dataSources', 'Data Sources') },
+              { id: 'backtesting', icon: Activity, label: t('sidebar.backtesting', 'Backtesting Providers') },
+              { id: 'terminalConfig', icon: SettingsIcon, label: t('sidebar.tabLayout', 'Tab Layout') },
+              { id: 'terminal', icon: Terminal, label: t('sidebar.appearance', 'Appearance') },
+              { id: 'language', icon: Globe, label: t('sidebar.language', 'Language') }
             ].map((item) => (
               <div
                 key={item.id}

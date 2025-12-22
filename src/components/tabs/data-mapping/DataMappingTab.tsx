@@ -22,10 +22,12 @@ import { TemplateLibrary } from './components/TemplateLibrary';
 import { mappingEngine } from './engine/MappingEngine';
 import { mappingDatabase } from './services/MappingDatabase';
 import { v4 as uuidv4 } from 'uuid';
+import { useTranslation } from 'react-i18next';
 
 type View = 'list' | 'create' | 'templates';
 
 export default function DataMappingTab() {
+  const { t } = useTranslation('dataMapping');
   const [view, setView] = useState<View>('list');
   const [currentStep, setCurrentStep] = useState<CreateStep>('api-config');
   const [savedMappings, setSavedMappings] = useState<DataMappingConfig[]>([]);
@@ -402,7 +404,7 @@ export default function DataMappingTab() {
         return apiConfig.baseUrl && apiConfig.endpoint && apiConfig.name && sampleData !== null;
       case 'schema-select':
         return (schemaType === 'predefined' && selectedSchema) ||
-               (schemaType === 'custom' && customFields.length > 0);
+          (schemaType === 'custom' && customFields.length > 0);
       case 'field-mapping':
         return fieldMappings.length > 0;
       case 'cache-settings':
@@ -550,33 +552,30 @@ export default function DataMappingTab() {
           <div className="flex gap-2">
             <button
               onClick={() => setView('list')}
-              className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1 ${
-                view === 'list'
+              className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1 ${view === 'list'
                   ? 'bg-orange-600 text-white'
                   : 'bg-transparent text-gray-400 border border-zinc-700 hover:border-zinc-600'
-              }`}
+                }`}
             >
               <List size={12} />
               MY MAPPINGS
             </button>
             <button
               onClick={() => setView('templates')}
-              className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1 ${
-                view === 'templates'
+              className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1 ${view === 'templates'
                   ? 'bg-orange-600 text-white'
                   : 'bg-transparent text-gray-400 border border-zinc-700 hover:border-zinc-600'
-              }`}
+                }`}
             >
               <Bookmark size={12} />
               TEMPLATES
             </button>
             <button
               onClick={handleStartNewMapping}
-              className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1 ${
-                view === 'create'
+              className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1 ${view === 'create'
                   ? 'bg-orange-600 text-white'
                   : 'bg-transparent text-gray-400 border border-zinc-700 hover:border-zinc-600'
-              }`}
+                }`}
             >
               <Plus size={12} />
               CREATE NEW
@@ -596,9 +595,8 @@ export default function DataMappingTab() {
               return (
                 <React.Fragment key={step}>
                   <div
-                    className={`flex-1 flex flex-col items-center cursor-pointer ${
-                      index <= stepIndex ? 'opacity-100' : 'opacity-40'
-                    }`}
+                    className={`flex-1 flex flex-col items-center cursor-pointer ${index <= stepIndex ? 'opacity-100' : 'opacity-40'
+                      }`}
                     onClick={() => index <= stepIndex && setCurrentStep(step)}
                   >
                     <div className="flex items-center gap-2 mb-1">
@@ -608,26 +606,24 @@ export default function DataMappingTab() {
                           status === 'complete'
                             ? 'text-green-500'
                             : status === 'current'
-                            ? 'text-orange-500'
-                            : 'text-gray-600'
+                              ? 'text-orange-500'
+                              : 'text-gray-600'
                         }
                       />
                       <span
-                        className={`text-xs font-bold uppercase ${
-                          status === 'complete'
+                        className={`text-xs font-bold uppercase ${status === 'complete'
                             ? 'text-green-500'
                             : status === 'current'
-                            ? 'text-orange-500'
-                            : 'text-gray-600'
-                        }`}
+                              ? 'text-orange-500'
+                              : 'text-gray-600'
+                          }`}
                       >
                         {step.replace('-', ' ')}
                       </span>
                     </div>
                     <div
-                      className={`h-1 w-full rounded ${
-                        index <= stepIndex ? 'bg-orange-500' : 'bg-zinc-700'
-                      }`}
+                      className={`h-1 w-full rounded ${index <= stepIndex ? 'bg-orange-500' : 'bg-zinc-700'
+                        }`}
                     ></div>
                   </div>
                   {index < steps.length - 1 && (

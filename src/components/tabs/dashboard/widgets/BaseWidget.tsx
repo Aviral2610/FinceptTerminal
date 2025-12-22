@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, RefreshCw, Settings } from 'lucide-react';
 import { useTerminalTheme } from '@/contexts/ThemeContext';
+import { useTranslation } from 'react-i18next';
 
 export interface BaseWidgetProps {
   id: string;
@@ -24,6 +25,7 @@ export const BaseWidget: React.FC<BaseWidgetProps> = ({
   error = null,
   headerColor
 }) => {
+  const { t } = useTranslation('dashboard');
   const { colors, fontSize } = useTerminalTheme();
 
   // Use theme's headerColor if none provided
@@ -87,7 +89,7 @@ export const BaseWidget: React.FC<BaseWidgetProps> = ({
               }}
               onMouseEnter={(e) => e.currentTarget.style.color = colors.text || '#FFFFFF'}
               onMouseLeave={(e) => e.currentTarget.style.color = colors.textMuted || '#787878'}
-              title="Configure"
+              title={t('widgets.configure')}
             >
               <Settings size={12} />
             </button>
@@ -107,7 +109,7 @@ export const BaseWidget: React.FC<BaseWidgetProps> = ({
               }}
               onMouseEnter={(e) => !isLoading && (e.currentTarget.style.color = widgetHeaderColor)}
               onMouseLeave={(e) => !isLoading && (e.currentTarget.style.color = colors.text || '#FFFFFF')}
-              title="Refresh"
+              title={t('widgets.refresh')}
             >
               <RefreshCw size={12} style={{ animation: isLoading ? 'spin 1s linear infinite' : 'none' }} />
             </button>
@@ -126,7 +128,7 @@ export const BaseWidget: React.FC<BaseWidgetProps> = ({
               }}
               onMouseEnter={(e) => e.currentTarget.style.color = colors.alert || '#FF0000'}
               onMouseLeave={(e) => e.currentTarget.style.color = colors.textMuted || '#787878'}
-              title="Remove"
+              title={t('widgets.remove')}
             >
               <X size={12} />
             </button>
@@ -148,7 +150,7 @@ export const BaseWidget: React.FC<BaseWidgetProps> = ({
             fontSize: contentFontSize,
             textAlign: 'center'
           }}>
-            Error: {error}
+            {t('widgets.error')}: {error}
           </div>
         ) : isLoading ? (
           <div style={{
@@ -157,7 +159,7 @@ export const BaseWidget: React.FC<BaseWidgetProps> = ({
             fontSize: contentFontSize,
             textAlign: 'center'
           }}>
-            Loading...
+            {t('widgets.loading')}
           </div>
         ) : (
           children

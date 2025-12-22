@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BaseWidget } from './BaseWidget';
 import { fetchNewsWithCache, NewsArticle } from '../../../../services/newsService';
 import { useTerminalTheme } from '@/contexts/ThemeContext';
+import { useTranslation } from 'react-i18next';
 
 interface NewsWidgetProps {
   id: string;
@@ -11,6 +12,7 @@ interface NewsWidgetProps {
 }
 
 export const NewsWidget: React.FC<NewsWidgetProps> = ({ id, category = 'ALL', limit = 5, onRemove }) => {
+  const { t } = useTranslation('dashboard');
   const { colors, fontSize } = useTerminalTheme();
   const [news, setNews] = useState<NewsArticle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,7 +56,7 @@ export const NewsWidget: React.FC<NewsWidgetProps> = ({ id, category = 'ALL', li
   return (
     <BaseWidget
       id={id}
-      title={`NEWS - ${category}`}
+      title={`${t('widgets.news')} - ${category}`}
       onRemove={onRemove}
       onRefresh={loadNews}
       isLoading={loading}
@@ -90,7 +92,7 @@ export const NewsWidget: React.FC<NewsWidgetProps> = ({ id, category = 'ALL', li
         ))}
         {news.length === 0 && !loading && !error && (
           <div style={{ color: colors.textMuted, fontSize: headlineFontSize, textAlign: 'center', padding: '12px' }}>
-            No news available
+            {t('widgets.noNewsData')}
           </div>
         )}
       </div>

@@ -3,10 +3,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { UserApiService } from '@/services/userApi';
 import { useTerminalTheme } from '@/contexts/ThemeContext';
+import { useTranslation } from 'react-i18next';
 
 type ProfileScreen = 'overview' | 'usage' | 'payments' | 'subscriptions' | 'support' | 'settings';
 
 const ProfileTab: React.FC = () => {
+  const { t } = useTranslation('profile');
   const { colors } = useTerminalTheme();
   const { session, logout } = useAuth();
   const navigation = useNavigation();
@@ -171,14 +173,14 @@ const ProfileTab: React.FC = () => {
         {/* Header */}
         <div style={{ backgroundColor: colors.panel, borderBottom: `1px solid ${colors.textMuted}`, padding: '4px 8px', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', marginBottom: '2px' }}>
-            <span style={{ color: colors.primary, fontWeight: 'bold' }}>FINCEPT TERMINAL GUEST PROFILE</span>
+            <span style={{ color: colors.primary, fontWeight: 'bold' }}>{t('guestProfile')}</span>
             <span style={{ color: colors.text }}>|</span>
             <span style={{ color: colors.text }}>{currentTime.toISOString().replace('T', ' ').substring(0, 19)} UTC</span>
             <span style={{ color: colors.text }}>|</span>
-            <span style={{ color: colors.textMuted }}>REQUESTS:</span>
+            <span style={{ color: colors.textMuted }}>{t('requests')}:</span>
             <span style={{ color: colors.accent }}>{requestsToday}/{dailyLimit}</span>
             <span style={{ color: colors.text }}>|</span>
-            <span style={{ color: colors.textMuted }}>REMAINING:</span>
+            <span style={{ color: colors.textMuted }}>{t('remaining')}:</span>
             <span style={{ color: remaining > 10 ? colors.secondary : colors.alert }}>{remaining}</span>
             <button
               onClick={() => fetchData(true)}
@@ -196,7 +198,7 @@ const ProfileTab: React.FC = () => {
                 opacity: loading ? 0.5 : 1
               }}
             >
-              {loading ? 'LOADING...' : '↻ REFRESH'}
+              {loading ? t('loading') : t('refresh')}
             </button>
           </div>
         </div>
@@ -248,27 +250,27 @@ const ProfileTab: React.FC = () => {
               {/* Left Column */}
               <div style={{ flex: 1, backgroundColor: colors.panel, border: `1px solid ${colors.textMuted}`, padding: '4px', overflow: 'auto' }}>
                 <div style={{ color: colors.primary, fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>
-                  SESSION INFORMATION
+                  {t('sessionInformation')}
                 </div>
                 <div style={{ borderBottom: `1px solid ${colors.textMuted}`, marginBottom: '4px' }}></div>
 
                 <div style={{ marginBottom: '8px', fontSize: '12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                    <span style={{ color: colors.textMuted }}>Account Type:</span>
-                    <span style={{ color: colors.warning, fontWeight: 'bold' }}>GUEST</span>
+                    <span style={{ color: colors.textMuted }}>{t('accountType')}:</span>
+                    <span style={{ color: colors.warning, fontWeight: 'bold' }}>{t('guest')}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                    <span style={{ color: colors.textMuted }}>Session Expires:</span>
+                    <span style={{ color: colors.textMuted }}>{t('sessionExpires')}:</span>
                     <span style={{ color: colors.alert }}>{session?.expires_at ? formatDate(session.expires_at) : 'N/A'}</span>
                   </div>
                   <div style={{ marginBottom: '2px', paddingTop: '4px', borderTop: `1px solid ${colors.textMuted}` }}>
-                    <span style={{ color: colors.textMuted }}>Device ID:</span>
+                    <span style={{ color: colors.textMuted }}>{t('deviceId')}:</span>
                     <div style={{ color: colors.text, fontSize: '11px', marginTop: '2px', wordBreak: 'break-all' }}>
                       {displayDeviceId}
                     </div>
                   </div>
                   <div style={{ marginBottom: '2px', paddingTop: '4px', borderTop: `1px solid ${colors.textMuted}` }}>
-                    <span style={{ color: colors.textMuted }}>API Key:</span>
+                    <span style={{ color: colors.textMuted }}>{t('apiKey')}:</span>
                     <div style={{ color: colors.text, fontSize: '11px', marginTop: '2px', wordBreak: 'break-all' }}>
                       {session?.api_key ? `${session.api_key.substring(0, 40)}...` : 'N/A'}
                     </div>
@@ -277,13 +279,13 @@ const ProfileTab: React.FC = () => {
 
                 <div style={{ marginTop: '12px' }}>
                   <div style={{ color: colors.primary, fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>
-                    DAILY USAGE STATS
+                    {t('dailyUsageStats')}
                   </div>
                   <div style={{ borderBottom: `1px solid ${colors.textMuted}`, marginBottom: '4px' }}></div>
 
                   <div style={{ fontSize: '12px', marginBottom: '6px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                      <span style={{ color: colors.textMuted }}>Today's Requests:</span>
+                      <span style={{ color: colors.textMuted }}>{t('todaysRequests')}:</span>
                       <span style={{ color: colors.text, fontWeight: 'bold' }}>{requestsToday}/{dailyLimit}</span>
                     </div>
                     <div style={{ backgroundColor: colors.background, height: '6px', marginBottom: '4px', border: `1px solid ${colors.textMuted}` }}>
@@ -295,12 +297,12 @@ const ProfileTab: React.FC = () => {
                       }} />
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                      <span style={{ color: colors.textMuted }}>Remaining:</span>
+                      <span style={{ color: colors.textMuted }}>{t('remaining')}:</span>
                       <span style={{ color: remaining > 10 ? colors.secondary : colors.alert, fontWeight: 'bold' }}>{remaining}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: colors.textMuted }}>Status:</span>
-                      <span style={{ color: colors.secondary }}>ACTIVE</span>
+                      <span style={{ color: colors.textMuted }}>{t('status')}:</span>
+                      <span style={{ color: colors.secondary }}>{t('active')}</span>
                     </div>
                   </div>
                 </div>
@@ -309,21 +311,21 @@ const ProfileTab: React.FC = () => {
               {/* Right Column */}
               <div style={{ flex: 1, backgroundColor: colors.panel, border: `1px solid ${colors.textMuted}`, padding: '4px', overflow: 'auto' }}>
                 <div style={{ color: colors.primary, fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>
-                  UPGRADE TO FULL ACCESS
+                  {t('upgradeToFullAccess')}
                 </div>
                 <div style={{ borderBottom: `1px solid ${colors.textMuted}`, marginBottom: '4px' }}></div>
 
                 <div style={{ fontSize: '12px', color: colors.text, lineHeight: '1.4', marginBottom: '8px' }}>
                   <div style={{ color: colors.warning, fontWeight: 'bold', marginBottom: '4px' }}>
-                    Create a free account to unlock:
+                    {t('createAccountUnlock')}:
                   </div>
                   <div style={{ marginLeft: '8px' }}>
-                    <div>- Unlimited API requests</div>
-                    <div>- Permanent API key</div>
-                    <div>- All database access</div>
-                    <div>- Premium features & tools</div>
-                    <div>- Data marketplace</div>
-                    <div>- Advanced analytics</div>
+                    <div>- {t('unlimitedApiRequests')}</div>
+                    <div>- {t('permanentApiKey')}</div>
+                    <div>- {t('allDatabaseAccess')}</div>
+                    <div>- {t('premiumFeatures')}</div>
+                    <div>- {t('dataMarketplace')}</div>
+                    <div>- {t('advancedAnalytics')}</div>
                   </div>
                 </div>
 
@@ -340,7 +342,7 @@ const ProfileTab: React.FC = () => {
                     cursor: 'pointer'
                   }}
                 >
-                  VIEW PRICING PLANS
+                  {t('viewPricingPlans')}
                 </button>
               </div>
             </div>
@@ -353,8 +355,8 @@ const ProfileTab: React.FC = () => {
         {/* Status Bar */}
         <div style={{ borderTop: `1px solid ${colors.textMuted}`, backgroundColor: colors.panel, padding: '2px 8px', fontSize: '11px', color: colors.textMuted, flexShrink: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>FinceptTerminal v3.0.11 | Guest Session</span>
-            <span>Device: {session?.device_id?.substring(0, 20) || 'UNKNOWN'} | Status: {loading ? 'UPDATING' : 'READY'}</span>
+            <span>{t('guestSession')}</span>
+            <span>{t('device')}: {session?.device_id?.substring(0, 20) || 'UNKNOWN'} | {t('status')}: {loading ? t('updating') : t('ready')}</span>
           </div>
         </div>
       </div>
@@ -386,7 +388,7 @@ const ProfileTab: React.FC = () => {
         {/* Header */}
         <div style={{ backgroundColor: colors.panel, borderBottom: `1px solid ${colors.textMuted}`, padding: '4px 8px', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', marginBottom: '2px' }}>
-            <span style={{ color: colors.primary, fontWeight: 'bold' }}>FINCEPT TERMINAL PROFILE</span>
+            <span style={{ color: colors.primary, fontWeight: 'bold' }}>{t('profile')}</span>
             <span style={{ color: colors.text }}>|</span>
             <span style={{ color: colors.accent, fontWeight: 'bold' }}>
               {userInfo?.username?.toUpperCase() || userInfo?.email?.split('@')[0]?.toUpperCase() || 'USER'}
@@ -394,7 +396,7 @@ const ProfileTab: React.FC = () => {
             <span style={{ color: colors.text }}>|</span>
             <span style={{ color: colors.text }}>{currentTime.toISOString().replace('T', ' ').substring(0, 19)} UTC</span>
             <span style={{ color: colors.text }}>|</span>
-            <span style={{ color: colors.textMuted }}>CREDITS:</span>
+            <span style={{ color: colors.textMuted }}>{t('credits')}:</span>
             <span style={{ color: creditBalance > 0 ? colors.secondary : colors.alert, fontWeight: 'bold' }}>
               {creditBalance.toFixed(2)}
             </span>
@@ -588,7 +590,7 @@ const ProfileTab: React.FC = () => {
                         <span style={{ color: colors.textMuted }}>API Calls:</span>
                         <span style={{ color: colors.accent, fontWeight: 'bold' }}>
                           {subscriptionPlan.api_calls_limit === -1 ? 'UNLIMITED' :
-                           subscriptionPlan.api_calls_limit != null ? subscriptionPlan.api_calls_limit.toLocaleString() : 'N/A'}
+                            subscriptionPlan.api_calls_limit != null ? subscriptionPlan.api_calls_limit.toLocaleString() : 'N/A'}
                         </span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>

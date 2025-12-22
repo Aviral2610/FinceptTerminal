@@ -20,8 +20,10 @@ import { DATA_SOURCE_CONFIGS } from './dataSourceConfigs';
 import { DataSourceConfig, DataSourceConnection, DataSourceCategory } from './types';
 import { hasAdapter } from './adapters';
 import { useDataSources } from '../../../contexts/DataSourceContext';
+import { useTranslation } from 'react-i18next';
 
 export default function DataSourcesTab() {
+  const { t } = useTranslation('dataSources');
   const {
     connections,
     addConnection,
@@ -489,10 +491,10 @@ export default function DataSourcesTab() {
                                   connection.status === 'connected'
                                     ? '#10b981'
                                     : connection.status === 'error'
-                                    ? '#ef4444'
-                                    : connection.status === 'testing'
-                                    ? '#f59e0b'
-                                    : '#737373',
+                                      ? '#ef4444'
+                                      : connection.status === 'testing'
+                                        ? '#f59e0b'
+                                        : '#737373',
                               }}
                             >
                               {connection.status === 'connected' && <Check size={12} />}

@@ -4,8 +4,10 @@ import { DOC_SECTIONS } from './content';
 import { DocSubsection } from './types';
 import { getColors } from './constants';
 import { useTerminalTheme } from '@/contexts/ThemeContext';
+import { useTranslation } from 'react-i18next';
 
 export default function DocsTab() {
+  const { t } = useTranslation('docs');
   const { colors: themeColors } = useTerminalTheme();
   const COLORS = getColors();
   const [currentTime, setCurrentTime] = useState(new Date());

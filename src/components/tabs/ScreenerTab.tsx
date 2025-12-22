@@ -4,6 +4,7 @@ import { Search, Download, TrendingUp, BarChart3, Loader2, AlertCircle, FolderTr
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { sqliteService } from '@/services/sqliteService';
 import { invoke } from '@tauri-apps/api/core';
+import { useTranslation } from 'react-i18next';
 
 interface SeriesData {
   date: string;
@@ -58,6 +59,7 @@ const POPULAR_CATEGORIES = [
 ];
 
 export default function ScreenerTab() {
+  const { t } = useTranslation('screener');
   const { colors, fontSize, fontFamily, fontWeight, fontStyle } = useTerminalTheme();
   const [seriesIds, setSeriesIds] = useState('GDP');
   const [startDate, setStartDate] = useState('2000-01-01');
@@ -76,7 +78,7 @@ export default function ScreenerTab() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [currentCategory, setCurrentCategory] = useState<number>(0);
-  const [categoryPath, setCategoryPath] = useState<{id: number, name: string}[]>([{id: 0, name: 'All Categories'}]);
+  const [categoryPath, setCategoryPath] = useState<{ id: number, name: string }[]>([{ id: 0, name: 'All Categories' }]);
   const [categoryLoading, setCategoryLoading] = useState(false);
   const [categorySeriesResults, setCategorySeriesResults] = useState<SearchResult[]>([]);
   const [categorySeriesLoading, setCategorySeriesLoading] = useState(false);
@@ -196,7 +198,7 @@ export default function ScreenerTab() {
   };
 
   // Navigate to category
-  const navigateToCategory = async (cat: {id: number, name: string}) => {
+  const navigateToCategory = async (cat: { id: number, name: string }) => {
     setCurrentCategory(cat.id);
     setCategoryPath([...categoryPath, cat]);
     setSearchQuery('');

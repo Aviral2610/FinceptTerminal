@@ -10,6 +10,7 @@ import LLMSettingsModal from './LLMSettingsModal';
 import MarkdownRenderer from '../common/MarkdownRenderer';
 import ContextSelector from '../common/ContextSelector';
 import { TimezoneSelector } from '../common/TimezoneSelector';
+import { useTranslation } from 'react-i18next';
 
 interface ChatTabProps {
   onNavigateToSettings?: () => void;
@@ -17,6 +18,7 @@ interface ChatTabProps {
 }
 
 const ChatTab: React.FC<ChatTabProps> = ({ onNavigateToSettings, onNavigateToTab }) => {
+  const { t } = useTranslation('chat');
   const { colors, fontSize, fontFamily, fontWeight, fontStyle } = useTerminalTheme();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentSessionUuid, setCurrentSessionUuid] = useState<string | null>(null);

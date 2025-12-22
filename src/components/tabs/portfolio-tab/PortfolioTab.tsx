@@ -18,8 +18,10 @@ import ActiveManagementView from './portfolio/ActiveManagementView';
 import { getBloombergColors, formatCurrency, formatPercent, formatNumber } from './portfolio/utils';
 import { useTerminalTheme } from '@/contexts/ThemeContext';
 import { TimezoneSelector } from '../../common/TimezoneSelector';
+import { useTranslation } from 'react-i18next';
 
 const PortfolioTab: React.FC = () => {
+  const { t } = useTranslation('portfolio');
   const { colors: themeColors } = useTerminalTheme();
   const BLOOMBERG_COLORS = getBloombergColors();
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -286,11 +288,11 @@ const PortfolioTab: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ color: ORANGE, fontWeight: 'bold', fontSize: '14px' }}>
-              FINCEPT PORTFOLIO MANAGER
+              {t('title')}
             </span>
             <span style={{ color: WHITE }}>|</span>
             <span style={{ color: refreshing ? ORANGE : GREEN, fontSize: '10px' }}>
-              ● {refreshing ? 'UPDATING' : 'LIVE'}
+              ● {refreshing ? t('header.updating') : t('header.live')}
             </span>
             <span style={{ color: WHITE }}>|</span>
             <TimezoneSelector compact />
@@ -313,7 +315,7 @@ const PortfolioTab: React.FC = () => {
               }}
             >
               <Plus size={12} />
-              NEW PORTFOLIO
+              {t('header.newPortfolio')}
             </button>
             <button
               onClick={refreshPortfolioData}
@@ -333,7 +335,7 @@ const PortfolioTab: React.FC = () => {
               }}
             >
               <RefreshCw size={12} />
-              REFRESH
+              {t('header.refresh')}
             </button>
             <button
               onClick={handleExportCSV}
@@ -353,7 +355,7 @@ const PortfolioTab: React.FC = () => {
               }}
             >
               <Download size={12} />
-              EXPORT CSV
+              {t('header.exportCsv')}
             </button>
           </div>
         </div>

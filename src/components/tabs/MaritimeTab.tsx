@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTerminalTheme } from '@/contexts/ThemeContext';
+import { useTranslation } from 'react-i18next';
 
 interface MarkerData {
   lat: number;
@@ -25,6 +26,7 @@ interface IntelligenceData {
 }
 
 export default function MaritimeTab() {
+  const { t } = useTranslation('maritime');
   const { colors, fontSize, fontFamily, fontWeight, fontStyle } = useTerminalTheme();
   const [markers, setMarkers] = useState<MarkerData[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<TradeRoute | null>(null);

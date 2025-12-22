@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BaseWidget } from './BaseWidget';
 import { useTerminalTheme } from '@/contexts/ThemeContext';
+import { useTranslation } from 'react-i18next';
 
 interface TradeRoute {
   name: string;
@@ -24,6 +25,7 @@ const TRADE_ROUTES: TradeRoute[] = [
 ];
 
 export const MaritimeWidget: React.FC<MaritimeWidgetProps> = ({ id, onRemove, onNavigate }) => {
+  const { t } = useTranslation('dashboard');
   const { colors, fontSize } = useTerminalTheme();
   const [intelligence, setIntelligence] = useState({
     active_vessels: 1247,
@@ -209,7 +211,7 @@ export const MaritimeWidget: React.FC<MaritimeWidgetProps> = ({ id, onRemove, on
   return (
     <BaseWidget
       id={id}
-      title="⚓ MARITIME INTELLIGENCE"
+      title={t('widgets.maritimeIntelligence')}
       onRemove={onRemove}
       headerColor={colors.accent || '#00FFFF'}
     >
@@ -246,7 +248,7 @@ export const MaritimeWidget: React.FC<MaritimeWidgetProps> = ({ id, onRemove, on
             fontWeight: 'bold',
             borderRadius: '2px'
           }}>
-            3D GLOBE
+            {t('widgets.globe3D')}
           </div>
         </div>
 
@@ -262,19 +264,19 @@ export const MaritimeWidget: React.FC<MaritimeWidgetProps> = ({ id, onRemove, on
             borderBottom: `1px solid ${colors.textMuted}`
           }}>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ color: colors.textMuted || '#787878', fontSize: labelFontSize }}>VESSELS</div>
+              <div style={{ color: colors.textMuted || '#787878', fontSize: labelFontSize }}>{t('widgets.vessels')}</div>
               <div style={{ color: colors.accent || '#00FFFF', fontWeight: 'bold', fontSize: valueFontSize }}>
                 {intelligence.active_vessels}
               </div>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ color: colors.textMuted || '#787878', fontSize: labelFontSize }}>ROUTES</div>
+              <div style={{ color: colors.textMuted || '#787878', fontSize: labelFontSize }}>{t('widgets.routes')}</div>
               <div style={{ color: colors.accent || '#00FFFF', fontWeight: 'bold', fontSize: valueFontSize }}>
                 {intelligence.monitored_routes}
               </div>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ color: colors.textMuted || '#787878', fontSize: labelFontSize }}>VOL 24H</div>
+              <div style={{ color: colors.textMuted || '#787878', fontSize: labelFontSize }}>{t('widgets.vol24h')}</div>
               <div style={{ color: colors.secondary, fontWeight: 'bold', fontSize: valueFontSize }}>
                 {intelligence.trade_volume}
               </div>
@@ -283,7 +285,7 @@ export const MaritimeWidget: React.FC<MaritimeWidgetProps> = ({ id, onRemove, on
 
           {/* Top Trade Routes */}
           <div style={{ color: colors.accent || '#00FFFF', fontSize: routeNameFontSize, fontWeight: 'bold', marginBottom: '3px' }}>
-            TOP TRADE CORRIDORS
+            {t('widgets.topTradeCorridors')}
           </div>
           {TRADE_ROUTES.map((route, idx) => (
             <div
@@ -316,7 +318,7 @@ export const MaritimeWidget: React.FC<MaritimeWidgetProps> = ({ id, onRemove, on
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: routeDetailFontSize }}>
                 <span style={{ color: colors.textMuted || '#787878' }}>{route.value}</span>
-                <span style={{ color: colors.accent || '#00FFFF' }}>{route.vessels} ships</span>
+                <span style={{ color: colors.accent || '#00FFFF' }}>{route.vessels} {t('widgets.ships')}</span>
               </div>
             </div>
           ))}

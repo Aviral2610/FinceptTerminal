@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { RefreshCw, Download, Globe, TrendingUp, BarChart3, PieChart } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import bisDataService from '@/services/bisDataService';
+import { useTranslation } from 'react-i18next';
 
 interface Indicator {
   code: string;
@@ -35,6 +36,7 @@ interface ProfileData {
 }
 
 export default function EconomicsTab() {
+  const { t } = useTranslation('economics');
   const { colors, fontSize, fontFamily, fontWeight, fontStyle } = useTerminalTheme();
   const [dataSource, setDataSource] = useState<'econdb' | 'bis'>('econdb');
   const [view, setView] = useState<'indicator' | 'profile' | 'countries'>('indicator');

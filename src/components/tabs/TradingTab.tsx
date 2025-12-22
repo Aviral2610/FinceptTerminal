@@ -24,6 +24,7 @@ import { AIAgentsPanel } from './trading/ai-agents/AIAgentsPanel';
 import { ModelChatPanel } from './trading/ai-agents/ModelChatPanel';
 import { LeaderboardPanel } from './trading/ai-agents/LeaderboardPanel';
 import type { OrderRequest } from '../../types/trading';
+import { useTranslation } from 'react-i18next';
 
 interface OrderBookLevel {
   price: number;
@@ -79,6 +80,7 @@ const BLOOMBERG = {
 };
 
 export function TradingTab() {
+  const { t } = useTranslation('trading');
   const {
     activeBroker,
     availableBrokers,
@@ -572,7 +574,7 @@ export function TradingTab() {
               letterSpacing: '0.5px',
               textShadow: `0 0 10px ${BLOOMBERG.ORANGE}40`
             }}>
-              FINCEPT TERMINAL
+              {t('header.terminal')}
             </span>
           </div>
 
@@ -599,7 +601,7 @@ export function TradingTab() {
               onMouseLeave={(e) => e.currentTarget.style.borderColor = BLOOMBERG.BORDER}
             >
               <Globe size={12} />
-              {activeBroker?.toUpperCase() || 'SELECT BROKER'}
+              {activeBroker?.toUpperCase() || t('header.selectBroker')}
               <ChevronDown size={10} />
             </button>
 
@@ -677,7 +679,7 @@ export function TradingTab() {
                 transition: 'all 0.2s'
               }}
             >
-              PAPER
+              {t('header.paper')}
             </button>
             <button
               onClick={() => setTradingMode('live')}
@@ -692,7 +694,7 @@ export function TradingTab() {
                 transition: 'all 0.2s'
               }}
             >
-              LIVE
+              {t('header.live')}
             </button>
           </div>
         </div>
