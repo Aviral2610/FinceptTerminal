@@ -974,13 +974,13 @@ export default function BacktestingTab() {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
               <Settings size={16} />
-              <span style={{ fontWeight: '600' }}>Configuration</span>
+              <span style={{ fontWeight: '600' }}>{t('sections.strategyConfig')}</span>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', color: colors.textMuted }}>
-                  Start Date
+                  {t('config.startDate')}
                 </label>
                 <input
                   type="date"
@@ -1000,7 +1000,7 @@ export default function BacktestingTab() {
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', color: colors.textMuted }}>
-                  End Date
+                  {t('config.endDate')}
                 </label>
                 <input
                   type="date"
@@ -1020,7 +1020,7 @@ export default function BacktestingTab() {
 
               <div style={{ gridColumn: '1 / -1' }}>
                 <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', color: colors.textMuted }}>
-                  Initial Capital
+                  {t('config.initialCapital')}
                 </label>
                 <input
                   type="number"
@@ -1058,7 +1058,7 @@ export default function BacktestingTab() {
                 fontWeight: '500',
               }}
             >
-              <span>Advanced Settings</span>
+              <span>{t('sections.advancedSettings')}</span>
               {showAdvancedSettings ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
             </button>
 
@@ -1072,14 +1072,14 @@ export default function BacktestingTab() {
                 borderRadius: '4px',
               }}>
                 <div style={{ marginBottom: '8px', fontSize: '0.8rem', color: colors.textMuted, fontStyle: 'italic' }}>
-                  Advanced options for Backtesting.py provider
+                  {t('sections.advancedNote')}
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   {/* Commission */}
                   <div>
                     <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', color: colors.textMuted }}>
-                      Commission (decimal)
+                      {t('advanced.commission')}
                     </label>
                     <input
                       type="number"

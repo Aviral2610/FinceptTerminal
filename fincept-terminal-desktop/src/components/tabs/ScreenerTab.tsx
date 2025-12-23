@@ -1006,7 +1006,7 @@ export default function ScreenerTab() {
               {t('apiKey.required')}
             </p>
             <p style={{ color: colors.text, fontSize: fontSize.small, lineHeight: '1.5', marginBottom: '8px' }}>
-              Configure your FRED API key in <strong>Settings → Credentials</strong> to access economic data.
+              {t('apiKey.configure')}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <p style={{ color: colors.textMuted, fontSize: fontSize.tiny }}>

@@ -624,7 +624,7 @@ function FinxeptTerminalContent() {
           <DropdownMenu label="Help" items={helpMenuItems} onItemClick={handleMenuAction} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <span style={{ color: '#ea580c', fontSize: '11px', fontWeight: 'bold', letterSpacing: '0.5px' }}>FINCEPT PROFESSIONAL</span>
+          <span style={{ color: '#ea580c', fontSize: '11px', fontWeight: 'bold', letterSpacing: '0.5px' }}>{t('header.title')}</span>
           <div style={{ width: '1px', height: '14px', backgroundColor: '#525252' }}></div>
           <button
             onClick={toggleFullscreen}

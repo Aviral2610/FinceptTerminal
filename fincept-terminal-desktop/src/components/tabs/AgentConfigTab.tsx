@@ -464,19 +464,19 @@ const AgentConfigTab: React.FC = () => {
             fontWeight: 600,
             color: BLOOMBERG.GRAY
           }}>
-            {teamName ? `TEAM: ${teamName.toUpperCase()} (${agents.length})` : `AVAILABLE AGENTS (${agents.length})`}
+            {teamName ? `TEAM: ${teamName.toUpperCase()} (${agents.length})` : `${t('sidebar.availableAgents')} (${agents.length})`}
           </div>
 
           <div style={{ flex: 1, overflow: 'auto', padding: '8px' }}>
             {loading && agents.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '20px', color: BLOOMBERG.GRAY }}>
                 <RefreshCw size={20} className="animate-spin" style={{ margin: '0 auto' }} />
-                <div style={{ marginTop: '8px', fontSize: '10px' }}>Loading agents...</div>
+                <div style={{ marginTop: '8px', fontSize: '10px' }}>{t('messages.loadingAgents')}</div>
               </div>
             ) : agents.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '20px', color: BLOOMBERG.GRAY }}>
                 <AlertCircle size={20} style={{ margin: '0 auto' }} />
-                <div style={{ marginTop: '8px', fontSize: '10px' }}>No agents found</div>
+                <div style={{ marginTop: '8px', fontSize: '10px' }}>{t('messages.noAgents')}</div>
               </div>
             ) : (
               <>
@@ -692,12 +692,12 @@ const AgentConfigTab: React.FC = () => {
                 {/* Test Query Input */}
                 <div style={{ marginBottom: '8px' }}>
                   <div style={{ fontSize: '9px', fontWeight: 600, color: BLOOMBERG.GRAY, marginBottom: '4px' }}>
-                    TEST QUERY
+                    {t('config.testQuery')}
                   </div>
                   <textarea
                     value={testQuery}
                     onChange={(e) => setTestQuery(e.target.value)}
-                    placeholder="Enter your test query here..."
+                    placeholder={t('config.testQueryPlaceholder')}
                     style={{
                       width: '100%',
                       minHeight: '60px',
@@ -731,7 +731,7 @@ const AgentConfigTab: React.FC = () => {
                     }}
                   >
                     <Save size={12} />
-                    Save Configuration
+                    {t('toolbar.saveConfig')}
                   </button>
 
                   <button
@@ -751,7 +751,7 @@ const AgentConfigTab: React.FC = () => {
                     }}
                   >
                     <Play size={12} />
-                    {loading ? 'Testing...' : 'Test Agent'}
+                    {loading ? t('status.running') : t('toolbar.testAgent')}
                   </button>
 
                   {(teamName || (selectedBook && agents.filter(a => a.book_source === selectedBook).length > 1)) && (

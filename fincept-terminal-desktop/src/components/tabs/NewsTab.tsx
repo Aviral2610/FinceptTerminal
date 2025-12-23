@@ -375,18 +375,18 @@ const NewsTab: React.FC = () => {
       }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '2px' }}>
           {[
-            { key: "F1", label: "ALL", filter: "ALL" },
-            { key: "F2", label: "MARKETS", filter: "MARKETS" },
-            { key: "F3", label: "EARNINGS", filter: "EARNINGS" },
-            { key: "F4", label: "ECON", filter: "ECONOMIC" },
-            { key: "F5", label: "TECH", filter: "TECH" },
-            { key: "F6", label: "ENERGY", filter: "ENERGY" },
-            { key: "F7", label: "BANKING", filter: "BANKING" },
-            { key: "F8", label: "CRYPTO", filter: "CRYPTO" },
-            { key: "F9", label: "GEOPO", filter: "GEOPOLITICS" },
-            { key: "F10", label: "FLASH", filter: "FLASH" },
-            { key: "F11", label: "URGENT", filter: "URGENT" },
-            { key: "F12", label: "REFRESH", filter: "REFRESH" }
+            { key: "F1", label: t('categories.all'), filter: "ALL" },
+            { key: "F2", label: t('categories.markets'), filter: "MARKETS" },
+            { key: "F3", label: t('categories.earnings'), filter: "EARNINGS" },
+            { key: "F4", label: t('categories.economic'), filter: "ECONOMIC" },
+            { key: "F5", label: t('categories.tech'), filter: "TECH" },
+            { key: "F6", label: t('categories.energy'), filter: "ENERGY" },
+            { key: "F7", label: t('categories.banking'), filter: "BANKING" },
+            { key: "F8", label: t('categories.crypto'), filter: "CRYPTO" },
+            { key: "F9", label: t('categories.geopolitics'), filter: "GEOPOLITICS" },
+            { key: "F10", label: t('categories.flash'), filter: "FLASH" },
+            { key: "F11", label: t('categories.urgent'), filter: "URGENT" },
+            { key: "F12", label: t('feedLabels.refresh'), filter: "REFRESH" }
           ].map(item => (
             <button key={item.key}
               onClick={() => {
@@ -435,7 +435,7 @@ const NewsTab: React.FC = () => {
             overflow: 'auto'
           }}>
             <div style={{ color: colors.primary, fontSize: '11px', fontWeight: 'bold', marginBottom: '4px' }}>
-              PRIMARY NEWS FEED [{activeFilter}]
+              {t('feedLabels.primary')} [{activeFilter}]
             </div>
             <div style={{ borderBottom: `1px solid ${colors.textMuted}`, marginBottom: '4px' }}></div>
 
